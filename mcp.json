@@ -1,0 +1,83 @@
+{
+  "servers": {
+    // === ESSENTIAL FOR WEB DEVELOPMENT ===
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem"],
+      "type": "stdio"
+    },
+    "fetch": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-fetch@latest"],
+      "type": "stdio"
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer@latest"],
+      "type": "stdio"
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory@latest"],
+      "type": "stdio"
+    },
+    "time": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-time@latest"],
+      "type": "stdio"
+    },
+    
+    // === VERSION CONTROL ===
+    "git": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-git"],
+      "type": "stdio"
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@github/github-mcp-server@latest"],
+      "type": "stdio",
+      "env": {
+        "GITHUB_TOKEN": "${input:github_token}"
+      }
+    },
+    
+    // === DATABASE FOR DEVELOPMENT ===
+    "sqlite": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sqlite@latest"],
+      "type": "stdio"
+    },
+    
+    // === CODE SEARCH ===
+    "ripgrep": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-ripgrep"],
+      "type": "stdio"
+    },
+    
+    // === SEARCH FOR RESEARCH ===
+    "brave-search": {
+      "command": "npx",
+      "args": ["-y", "@brave/brave-search-mcp-server@latest"],
+      "type": "stdio",
+      "env": {
+        "BRAVE_API_KEY": "${input:brave_api_key}"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "id": "github_token",
+      "type": "promptString",
+      "description": "GitHub Personal Access Token",
+      "password": true
+    },
+    {
+      "id": "brave_api_key",
+      "type": "promptString",
+      "description": "Brave Search API Key (optional - for web search)",
+      "password": true
+    }
+  ]
+}

@@ -1,0 +1,408 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --background: 254 100% 99%;
+        --foreground: 20 40% 25%;
+        --card: 0 0% 100%;
+        --card-foreground: 20 40% 25%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 20 40% 25%;
+        --primary: 14 81% 53%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 35 50% 93%;
+        --secondary-foreground: 20 40% 25%;
+        --muted: 35 50% 93%;
+        --muted-foreground: 25 30% 40%;
+        --accent: 14 81% 53%;
+        --accent-foreground: 0 0% 100%;
+        --destructive: 0 84% 60%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 35 30% 85%;
+        --input: 35 30% 85%;
+        --ring: 14 81% 53%;
+        --radius: 0.5rem;
+    }
+
+    .dark {
+        --background: 222 84% 5%;
+        --foreground: 210 40% 98%;
+        --card: 222 84% 5%;
+        --card-foreground: 210 40% 98%;
+        --popover: 222 84% 5%;
+        --popover-foreground: 210 40% 98%;
+        --primary: 45 93% 47%;
+        --primary-foreground: 222 47% 11%;
+        --secondary: 217 33% 17%;
+        --secondary-foreground: 210 40% 98%;
+        --muted: 217 33% 17%;
+        --muted-foreground: 215 20% 65%;
+        --accent: 45 93% 47%;
+        --accent-foreground: 210 40% 98%;
+        --destructive: 0 63% 31%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 217 33% 17%;
+        --input: 217 33% 17%;
+        --ring: 45 93% 47%;
+    }
+
+    body {
+        @apply bg-creme text-espresso transition-colors duration-500;
+        font-family: "Inter", sans-serif;
+    }
+
+    .light body {
+        @apply bg-creme text-espresso;
+    }
+
+    .dark body {
+        @apply bg-midnight text-ivory;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        font-family: "Playfair Display", serif;
+    }
+}
+
+/* Theme-Adaptive Semantic Colors */
+@layer components {
+    /* Background Colors */
+    .bg-theme-primary {
+        @apply bg-creme dark:bg-midnight;
+    }
+
+    .bg-theme-secondary {
+        @apply bg-creme-light dark:bg-midnight-mid;
+    }
+
+    .bg-theme-card {
+        @apply bg-white dark:bg-midnight-mid;
+    }
+
+    .bg-theme-elevated {
+        @apply bg-white dark:bg-white/5;
+    }
+
+    /* Text Colors */
+    .text-theme-primary {
+        @apply text-espresso dark:text-ivory;
+    }
+
+    .text-theme-secondary {
+        @apply text-espresso-light dark:text-ivory/80;
+    }
+
+    .text-theme-muted {
+        @apply text-espresso-muted dark:text-ivory/60;
+    }
+
+    .text-theme-accent {
+        @apply text-terracotta dark:text-gold;
+    }
+
+    /* Border Colors */
+    .border-theme-light {
+        @apply border-creme-dark dark:border-white/10;
+    }
+
+    .border-theme-accent {
+        @apply border-terracotta dark:border-gold;
+    }
+
+    /* Glass Effect - Theme Aware */
+    .glass-theme {
+        @apply bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-warmGold/20 dark:border-white/10;
+    }
+
+    /* Card Styles - Theme Aware */
+    .card-theme {
+        @apply bg-white dark:bg-midnight-mid border border-creme-dark dark:border-white/5 shadow-soft dark:shadow-card-dark;
+    }
+}
+
+@layer utilities {
+    /* Premium Animations */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes slideInLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-50px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(50px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes float {
+        0%,
+        100% {
+            transform: translateY(0px);
+        }
+
+        50% {
+            transform: translateY(-20px);
+        }
+    }
+
+    @keyframes shine {
+        0% {
+            background-position: 0% 50%;
+        }
+
+        50% {
+            background-position: 100% 50%;
+        }
+
+        100% {
+            background-position: 0% 50%;
+        }
+    }
+
+    @keyframes glow {
+        0%,
+        100% {
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+        }
+
+        50% {
+            box-shadow: 0 0 40px rgba(212, 175, 55, 0.6);
+        }
+    }
+
+    @keyframes spin-slow {
+        from {
+            transform: rotate(0deg);
+        }
+
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @keyframes spin-reverse-slower {
+        from {
+            transform: rotate(360deg);
+        }
+
+        to {
+            transform: rotate(0deg);
+        }
+    }
+
+    @keyframes slowZoom {
+        0% {
+            transform: scale(1);
+        }
+
+        100% {
+            transform: scale(1.1);
+        }
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 1s ease-in-out;
+    }
+
+    .animate-fade-in-up {
+        animation: fadeInUp 0.8s ease-out;
+        animation-fill-mode: both;
+    }
+
+    .animate-slide-in-left {
+        animation: slideInLeft 0.8s ease-out;
+    }
+
+    .animate-slide-in-right {
+        animation: slideInRight 0.8s ease-out;
+    }
+
+    .animate-float {
+        animation: float 6s ease-in-out infinite;
+    }
+
+    .animate-shine {
+        animation: shine 8s ease-in-out infinite;
+        background-size: 300% 100%;
+    }
+
+    .animate-glow {
+        animation: glow 3s ease-in-out infinite;
+    }
+
+    .animate-spin-slow {
+        animation: spin-slow 20s linear infinite;
+    }
+
+    .animate-spin-reverse-slower {
+        animation: spin-reverse-slower 30s linear infinite;
+    }
+
+    .animate-slow-zoom {
+        animation: slowZoom 20s ease-in-out infinite alternate;
+    }
+
+    /* Glassmorphism Effects */
+    .glass {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(24px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .glass-strong {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(40px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Text Glow */
+    .text-glow {
+        text-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+    }
+
+    .text-glow-strong {
+        text-shadow: 0 0 30px rgba(212, 175, 55, 0.8);
+    }
+
+    /* Smooth Scrolling */
+    html {
+        scroll-behavior: smooth;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+        width: 12px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f5ebe0;
+    }
+
+    .dark ::-webkit-scrollbar-track {
+        background: #0d1b2a;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #d4a373;
+        border-radius: 6px;
+    }
+
+    .dark ::-webkit-scrollbar-thumb {
+        background: #d4af37;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #c49363;
+    }
+
+    .dark ::-webkit-scrollbar-thumb:hover {
+        background: #c9a02b;
+    }
+}
+
+/* Custom animations for cart icon */
+@keyframes pulse-slow {
+    0%,
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 8px rgba(212, 175, 55, 0);
+    }
+}
+
+@keyframes ping-slight {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    75%,
+    100% {
+        transform: scale(1.15);
+        opacity: 0;
+    }
+}
+
+.animate-pulse-slow {
+    animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-ping-slight {
+    animation: ping-slight 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* GPU-accelerated marquee animations for reviews */
+@keyframes marquee-left {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-33.333%);
+    }
+}
+
+@keyframes marquee-right {
+    0% {
+        transform: translateX(-33.333%);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+.animate-marquee-left {
+    animation: marquee-left 40s linear infinite;
+}
+
+.animate-marquee-right {
+    animation: marquee-right 45s linear infinite;
+}
+
+@layer utilities {
+    .text-balance {
+        text-wrap: balance;
+    }
+}
