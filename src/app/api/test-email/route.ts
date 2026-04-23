@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                from: "Amrit Milk Test <orders@amritmilkorganic.com>",
+                from: "Amrit Milk <onboarding@resend.dev>",
                 to: merchantEmail.split(",").map((e) => e.trim()),
                 subject: `Test Email Connection ${new Date().toISOString()}`,
                 html: `<h1> It Works!</h1><p>Email system is operational.</p>`,
