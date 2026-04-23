@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
             },
             body: JSON.stringify({
                 from: "Amrit Milk <onboarding@resend.dev>",
-                to: merchantEmail.split(",").map((e) => e.trim()),
+                to: ["pankaj.mishra88@gmail.com"],
                 subject: `Test Email Connection ${new Date().toISOString()}`,
                 html: `<h1> It Works!</h1><p>Email system is operational.</p>`,
             }),
