@@ -17,8 +17,8 @@ const contactInfo = [
     {
         icon: Mail,
         label: "Email",
-        value: "hello@amritmilkorganic.com",
-        href: "mailto:hello@amritmilkorganic.com",
+        value: "info@amritmilkorganic.com",
+        href: "mailto:info@amritmilkorganic.com",
     },
     { icon: Clock, label: "Support Hours", value: "6 AM - 10 PM Daily", href: null },
 ];
