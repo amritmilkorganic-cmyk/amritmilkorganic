@@ -15,32 +15,31 @@ function SuccessContent() {
     const trackingId = searchParams.get("tracking_id");
 
     useEffect(() => {
-    console.log("SuccessContent: mounted, clearing cart");
-    clearCart();
+        console.log("SuccessContent: mounted, clearing cart");
+        clearCart();
 
-    if (orderId) {
-        const emailSentKey = `order-email-sent-${orderId}';
+        if (orderId) {
+            const emailSentKey = `order-email-sent-${orderId}`;
 
-        if (!localStorage.getItem(emailSentKey)) {
-            fetch("/api/test-email")
-                .then(() => {
-                    localStorage.setItem(emailSentKey, "true");
-                    console.log("Order email triggered");
-                })
-                .catch((error) => {
-                    console.error("Order email failed:", error);
-                });
+            if (!localStorage.getItem(emailSentKey)) {
+                fetch("/api/test-email")
+                    .then(() => {
+                        localStorage.setItem(emailSentKey, "true");
+                        console.log("Order email triggered");
+                    })
+                    .catch((error) => {
+                        console.error("Order email failed:", error);
+                    });
+            }
         }
-    }
 
-    // Google Ads Conversion Event
-    if (typeof window !== "undefined" && (window as any).gtag) {
-        (window as any).gtag('event', 'conversion', {
-            'send_to': 'AW-17921700565/XnTpCLG5r_AbENXl3eFC',
-            'transaction_id': trackingId || orderId || '',
-        });
-    }
-}, [clearCart, trackingId, orderId]);
+        if (typeof window !== "undefined" && (window as any).gtag) {
+            (window as any).gtag("event", "conversion", {
+                send_to: "AW-17921700565/XnTpCLG5r_AbENXl3eFC",
+                transaction_id: trackingId || orderId || "",
+            });
+        }
+    }, [clearCart, trackingId, orderId]);
 
     return (
         <main className="bg-creme dark:bg-midnight min-h-screen flex items-center justify-center transition-colors duration-500">
@@ -80,6 +79,7 @@ function SuccessContent() {
                                         {orderId}
                                     </span>
                                 </div>
+
                                 {trackingId && (
                                     <div className="flex justify-between">
                                         <span className="text-espresso-muted dark:text-ivory/60">
@@ -111,6 +111,7 @@ function SuccessContent() {
                         >
                             Continue Shopping
                         </Link>
+
                         <Link
                             href="/"
                             className="inline-flex items-center justify-center font-bold uppercase tracking-widest transition-all duration-300 rounded-full bg-transparent border-2 border-terracotta text-terracotta hover:bg-terracotta/10 dark:border-gold dark:text-gold dark:hover:bg-gold/10 px-10 py-5 text-base relative z-30 cursor-pointer"
