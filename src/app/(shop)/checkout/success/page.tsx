@@ -15,17 +15,32 @@ function SuccessContent() {
     const trackingId = searchParams.get("tracking_id");
 
     useEffect(() => {
-        console.log("SuccessContent: mounted, clearing cart");
-        clearCart();
+    console.log("SuccessContent: mounted, clearing cart");
+    clearCart();
 
-        // Google Ads Conversion Event
-        if (typeof window !== "undefined" && (window as any).gtag) {
-            (window as any).gtag('event', 'conversion', {
-                'send_to': 'AW-17921700565/XnTpCLG5r_AbENXl3eFC',
-                'transaction_id': trackingId || orderId || '', // Use available ID
-            });
+    if (orderId) {
+        const emailSentKey = `order-email-sent-${orderId}';
+
+        if (!localStorage.getItem(emailSentKey)) {
+            fetch("/api/test-email")
+                .then(() => {
+                    localStorage.setItem(emailSentKey, "true");
+                    console.log("Order email triggered");
+                })
+                .catch((error) => {
+                    console.error("Order email failed:", error);
+                });
         }
-    }, [clearCart, trackingId, orderId]);
+    }
+
+    // Google Ads Conversion Event
+    if (typeof window !== "undefined" && (window as any).gtag) {
+        (window as any).gtag('event', 'conversion', {
+            'send_to': 'AW-17921700565/XnTpCLG5r_AbENXl3eFC',
+            'transaction_id': trackingId || orderId || '',
+        });
+    }
+}, [clearCart, trackingId, orderId]);
 
     return (
         <main className="bg-creme dark:bg-midnight min-h-screen flex items-center justify-center transition-colors duration-500">
