@@ -638,7 +638,7 @@ export const products: Product[] = [
     {
         id: "milk-colostrum-1l",
         title: "Amrit Milk Organic A2 Colostrum Milk - 1 L",
-        price: "₹150",
+        price: "₹499",
         image: "/assets/img/products/amrit_milk_colostrum_1l_v2.png",
         category: "Dairy",
         description: "Immunity-boosting first milk (Colostrum) from A2 cows.",
