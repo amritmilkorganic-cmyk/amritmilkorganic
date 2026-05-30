@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
 
         if (!encResponse) {
             console.error("[Subscription] No encrypted response from CCAvenue");
+
             return NextResponse.redirect(
                 new URL("/subscription/failed?reason=no_response", req.url),
                 303
@@ -27,7 +28,10 @@ export async function POST(req: NextRequest) {
         const decrypted = decrypt(encResponse, WORKING_KEY);
         const responseParams = parseResponse(decrypted);
 
-        const orderStatus = String(responseParams.order_status || "").trim().toLowerCase();
+        const orderStatus = String(
+            responseParams.order_status || ""
+        ).trim().toLowerCase();
+
         const isSuccess = orderStatus === "success";
 
         console.log("[Subscription] CCAvenue Response:", {
@@ -43,6 +47,7 @@ export async function POST(req: NextRequest) {
             const subscription = {
                 _type: "subscription",
                 subscriptionId: responseParams.order_id,
+
                 customer: {
                     name: responseParams.billing_name || "",
                     email: responseParams.billing_email || "",
@@ -51,34 +56,56 @@ export async function POST(req: NextRequest) {
                         responseParams.billing_city || ""
                     }, ${responseParams.billing_zip || ""}`,
                 },
+
                 product: {
                     productId: responseParams.merchant_param2 || "unknown",
                     name: responseParams.merchant_param4 || "Product Name",
                     quantity: 1,
                     price: parseFloat(responseParams.amount || "0"),
                 },
+
                 plan: {
                     planType: responseParams.merchant_param3 || "one_time",
                     startDate: new Date().toISOString().split("T")[0],
-                    nextDelivery: new Date(Date.now() + 86400000).toISOString(),
+                    nextDelivery: new Date(
+                        Date.now() + 86400000
+                    ).toISOString(),
                 },
+
                 status: "active",
                 paymentMethod: "prepaid_one_time",
+
                 ccavenueData: {
                     subscriptionRefNo: responseParams.tracking_id || "",
                     mandateId: "N/A",
                     cardToken: responseParams.card_name || "",
                 },
+
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             };
 
-            await client.create(subscription);
+            // IMPORTANT:
+            // Even if Sanity create fails,
+            // customer should still see payment success.
+            try {
+                await client.create(subscription);
 
-            console.log(`[Subscription] Created ${responseParams.order_id}`);
+                console.log(
+                    `[Subscription] Created ${responseParams.order_id}`
+                );
+            } catch (sanityError) {
+                console.error(
+                    "[Subscription] Sanity create failed:",
+                    sanityError
+                );
+            }
 
             return NextResponse.redirect(
-                new URL(`/subscription/success?id=${responseParams.order_id}`, req.url),
+                new URL(
+                    `/subscription/success?id=${responseParams.order_id}`,
+                    req.url
+                ),
                 303
             );
         }
@@ -103,6 +130,7 @@ export async function POST(req: NextRequest) {
         );
     } catch (error: any) {
         console.error("[Subscription] Handler error:", error);
+
         return NextResponse.redirect(
             new URL("/subscription/failed?reason=server_error", req.url),
             303
