@@ -44,6 +44,8 @@ export async function POST(req: NextRequest) {
         console.log("CCAvenue Response:", JSON.stringify(responseParams, null, 2));
 
         const { order_id, tracking_id, order_status, status_message } = responseParams;
+        console.log("CCAvenue order_status:", order_status);
+        console.log("CCAvenue status_message:", status_message);
 
         // Check payment status
         if (order_status === "Success") {
