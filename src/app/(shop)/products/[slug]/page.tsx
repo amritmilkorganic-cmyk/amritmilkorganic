@@ -188,7 +188,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
                                 <div className="relative aspect-square rounded-[2rem] overflow-hidden bg-theme-secondary border border-theme-light group">
                                     <div className="absolute inset-0 bg-gradient-to-br from-terracotta/10 dark:from-gold/10 via-transparent to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-700"></div>
                                     <Image
-                                        src={basicProduct.image}
+                                        src={basicProduct.image || "/assets/img/amrit-logo-transparent.png"}
                                         alt={basicProduct.title}
                                         width={800}
                                         height={800}

@@ -4,6 +4,8 @@ import { getWordPressProducts, getWordPressProductBySlug } from "./wordpress/pro
 
 const USE_WORDPRESS = process.env.NEXT_PUBLIC_USE_WORDPRESS === "true";
 
+const FALLBACK_IMAGE = "/assets/img/amrit-logo-transparent.png";
+
 const productQuery = `*[_type == "product"] | order(_createdAt desc) {
   "id": _id,
   title,
@@ -31,61 +33,62 @@ function formatPrice(price: any): string {
     return String(price || "₹0");
 }
 
+function normalizeProduct(p: any, localMatch?: any) {
+    return {
+        ...(localMatch || {}),
+        ...(p || {}),
+        title: localMatch?.title || p?.title,
+        image: p?.image || localMatch?.image || FALLBACK_IMAGE,
+        highlights: p?.highlights || localMatch?.highlights || [],
+        ingredients: p?.ingredients || localMatch?.ingredients || [],
+        benefits: p?.benefits || localMatch?.benefits || [],
+        howToUse: p?.howToUse || localMatch?.howToUse || [],
+        variants:
+            localMatch?.variants && localMatch.variants.length > 0
+                ? localMatch.variants
+                : p?.variants || [],
+        price: formatPrice(p?.price || localMatch?.price),
+        regularPrice:
+            p?.regularPrice || localMatch?.regularPrice
+                ? formatPrice(p?.regularPrice || localMatch?.regularPrice)
+                : undefined,
+    };
+}
+
 export async function getProducts(): Promise<any[]> {
     try {
         if (USE_WORDPRESS) {
             console.log("[fetchProducts] Fetching from WordPress...");
             const wpProducts = await getWordPressProducts();
-            if (wpProducts.length > 0) {
-                return wpProducts;
-            }
-            console.log("[fetchProducts] WordPress empty, falling back...");
+            if (wpProducts.length > 0) return wpProducts;
         }
 
         if (!projectId) {
             console.log("[fetchProducts] No Sanity project ID, using static products");
-            return staticProducts;
+            return staticProducts.map((p: any) => normalizeProduct(p));
         }
 
-        const sanityProducts = await client.fetch(
-            productQuery,
-            {},
-            {
-                next: {
-                    revalidate: 60,
-                    tags: ["product", "all"],
-                },
-            }
-        );
+        const sanityProducts = await client.fetch(productQuery, {}, {
+            next: { revalidate: 60, tags: ["product", "all"] },
+        });
 
-        // PRIORITY: Sanity products take precedence
-        // Only use static products as fallback if Sanity has ZERO products
         if (sanityProducts && sanityProducts.length > 0) {
             console.log(`[fetchProducts] Loaded ${sanityProducts.length} products from Sanity`);
 
-            // Merge Strategy: Add static products that are NOT in Sanity (by slug)
-            // This ensures new local-only products (like Dals) appear immediately
             const sanitySlugs = new Set(sanityProducts.map((p: any) => p.slug));
             const missingStaticProducts = staticProducts.filter((p) => !sanitySlugs.has(p.slug));
             const allProducts = [...sanityProducts, ...missingStaticProducts];
 
-            return allProducts.map((p: any) => ({
-                ...p,
-                price: formatPrice(p.price),
-                regularPrice: p.regularPrice ? formatPrice(p.regularPrice) : undefined,
-            }));
+            return allProducts.map((p: any) => {
+                const localMatch = staticProducts.find((sp) => sp.slug === p.slug);
+                return normalizeProduct(p, localMatch);
+            });
         }
 
-        // Fallback to static products only if Sanity is empty
-        console.log("[fetchProducts] Sanity empty, using static products as fallback");
-        return staticProducts.map((p: any) => ({
-            ...p,
-            price: formatPrice(p.price),
-            regularPrice: p.regularPrice ? formatPrice(p.regularPrice) : undefined,
-        }));
+        return staticProducts.map((p: any) => normalizeProduct(p));
     } catch (error) {
         console.error("Error fetching products from Sanity:", error);
-        return staticProducts;
+        return staticProducts.map((p: any) => normalizeProduct(p));
     }
 }
 
@@ -93,11 +96,13 @@ export async function getProductBySlug(slug: string): Promise<any | null> {
     try {
         if (USE_WORDPRESS) {
             const wpProduct = await getWordPressProductBySlug(slug);
-            if (wpProduct) return wpProduct;
+            if (wpProduct) return normalizeProduct(wpProduct);
         }
 
+        const localMatch = staticProducts.find((p) => p.slug === slug);
+
         if (!projectId) {
-            return staticProducts.find((p) => p.slug === slug) || null;
+            return localMatch ? normalizeProduct(localMatch) : null;
         }
 
         const query = `*[_type == "product" && slug.current == $slug][0] {
@@ -121,55 +126,18 @@ export async function getProductBySlug(slug: string): Promise<any | null> {
             variants
         }`;
 
-        const product = await client.fetch(
-            query,
-            { slug },
-            {
-                next: {
-                    revalidate: 60,
-                    tags: ["product", `product:${slug}`, "all"],
-                },
-            }
-        );
-        const result = product || staticProducts.find((p) => p.slug === slug) || null;
+        const product = await client.fetch(query, { slug }, {
+            next: { revalidate: 60, tags: ["product", `product:${slug}`, "all"] },
+        });
 
-        if (result) {
-            // MERGE STRATEGY: Prioritize SANITY data (rich content) over LOCAL data
-            const localMatch = staticProducts.find((p) => p.slug === slug);
+        const result = product || localMatch || null;
 
-            if (localMatch) {
-                return {
-                    ...localMatch, // Local data defaults
-                    ...result, // Sanity data overrides basic fields
-                    // FORCE Title from local if available (to remove "500ml" etc.)
-                    title: localMatch.title || result.title,
-                    // Preserved Rich Content: Use local data if Sanity data is missing
-                    highlights: result.highlights || localMatch.highlights || [],
-                    ingredients: result.ingredients || localMatch.ingredients || [],
-                    benefits: result.benefits || localMatch.benefits || [],
-                    howToUse: result.howToUse || localMatch.howToUse || [],
-                    // Variants: PRIORITIZE LOCAL if available to ensure correct structure/titles
-                    variants:
-                        localMatch.variants && localMatch.variants.length > 0
-                            ? localMatch.variants
-                            : result.variants || [],
-                    // Ensure prices are formatted correctly
-                    price: formatPrice(result.price || localMatch.price),
-                    regularPrice:
-                        result.regularPrice || localMatch.regularPrice
-                            ? formatPrice(result.regularPrice || localMatch.regularPrice)
-                            : undefined,
-                };
-            }
-            return {
-                ...result,
-                price: formatPrice(result.price),
-                regularPrice: result.regularPrice ? formatPrice(result.regularPrice) : undefined,
-            };
-        }
-        return null;
+        if (!result) return null;
+
+        return normalizeProduct(result, localMatch);
     } catch (error) {
         console.error(`Error fetching product ${slug} from Sanity:`, error);
-        return staticProducts.find((p) => p.slug === slug) || null;
+        const localMatch = staticProducts.find((p) => p.slug === slug);
+        return localMatch ? normalizeProduct(localMatch) : null;
     }
 }
