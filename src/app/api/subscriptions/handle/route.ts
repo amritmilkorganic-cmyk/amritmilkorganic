@@ -4,7 +4,7 @@
  */
 
 import { decrypt, parseResponse } from "@/lib/ccavenue";
-import { client } from "@/lib/sanity";
+import { writeClient } from "@/lib/sanity";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -28,9 +28,9 @@ export async function POST(req: NextRequest) {
         const decrypted = decrypt(encResponse, WORKING_KEY);
         const responseParams = parseResponse(decrypted);
 
-        const orderStatus = String(
-            responseParams.order_status || ""
-        ).trim().toLowerCase();
+        const orderStatus = String(responseParams.order_status || "")
+            .trim()
+            .toLowerCase();
 
         const isSuccess = orderStatus === "success";
 
@@ -67,9 +67,7 @@ export async function POST(req: NextRequest) {
                 plan: {
                     planType: responseParams.merchant_param3 || "one_time",
                     startDate: new Date().toISOString().split("T")[0],
-                    nextDelivery: new Date(
-                        Date.now() + 86400000
-                    ).toISOString(),
+                    nextDelivery: new Date(Date.now() + 86400000).toISOString(),
                 },
 
                 status: "active",
@@ -85,27 +83,15 @@ export async function POST(req: NextRequest) {
                 updatedAt: new Date().toISOString(),
             };
 
-            // IMPORTANT:
-            // Even if Sanity create fails,
-            // customer should still see payment success.
             try {
-                await client.create(subscription);
-
-                console.log(
-                    `[Subscription] Created ${responseParams.order_id}`
-                );
+                await writeClient.create(subscription);
+                console.log(`[Subscription] Created ${responseParams.order_id}`);
             } catch (sanityError) {
-                console.error(
-                    "[Subscription] Sanity create failed:",
-                    sanityError
-                );
+                console.error("[Subscription] Sanity create failed:", sanityError);
             }
 
             return NextResponse.redirect(
-                new URL(
-                    `/subscription/success?id=${responseParams.order_id}`,
-                    req.url
-                ),
+                new URL(`/subscription/success?id=${responseParams.order_id}`, req.url),
                 303
             );
         }
