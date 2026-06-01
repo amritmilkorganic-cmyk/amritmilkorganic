@@ -5,31 +5,27 @@ import { ProductCollection } from "@/components/patterns/v2/ProductCollection";
 import { TrustStrip } from "@/components/patterns/v2/TrustStrip";
 import { FAQPageSchema, HowToSchema } from "@/components/seo/JsonLd";
 import { getProducts } from "@/lib/fetchProducts";
-import { getGoogleReviews, getInstagramPosts } from "@/lib/fetchSocials";
+import { getGoogleReviews } from "@/lib/fetchSocials";
 import type { Metadata } from "next";
 
-// V3 Story Components
 import { ToxicityAuditDark } from "@/components/patterns/v3/ToxicityAuditDark";
 import { KitchenQuizDark } from "@/components/patterns/v3/KitchenQuizDark";
 import { SustainabilityImpactDark } from "@/components/patterns/v3/SustainabilityImpactDark";
 import { DhartiGauMataSection } from "@/components/patterns/v3/DhartiGauMataSection";
 import { StoryTransition } from "@/components/patterns/v3/StoryTransition";
 
-// Story & Mission
 import { FarmTimeline } from "@/components/patterns/v2/FarmTimeline";
 import { GoogleReviews } from "@/components/patterns/v2/GoogleReviews";
 import { FouitaInstagramWidget } from "@/components/patterns/v2/FouitaInstagramWidget";
 import { MissionBridge } from "@/components/patterns/v2/MissionBridge";
 import { OurMission } from "@/components/patterns/v2/OurMission";
 
-// Product Spotlights
 import { FarmTourCTA } from "@/components/patterns/FarmTourCTA";
 import { FreshDelivery } from "@/components/patterns/FreshDelivery";
 import { LabReports } from "@/components/patterns/LabReports";
 import { PremiumStats } from "@/components/patterns/PremiumStats";
 import { GheeSpotlight } from "@/components/patterns/v2/GheeSpotlight";
 
-// Social Proof & Support
 import { ExpertPanel } from "@/components/patterns/ExpertPanel";
 import { FAQSection } from "@/components/patterns/FAQSection";
 import { Newsletter } from "@/components/patterns/Newsletter";
@@ -62,7 +58,6 @@ export const metadata: Metadata = {
     },
 };
 
-// FAQ Schema Data
 const homePageFAQs = [
     {
         question: "What is A2 milk and why is it better?",
@@ -82,7 +77,6 @@ const homePageFAQs = [
     },
 ];
 
-// HowTo Schema
 const gheeHowTo = {
     name: "How to Use Bilona Ghee for Maximum Health Benefits",
     description:
@@ -104,8 +98,8 @@ const gheeHowTo = {
 };
 
 export default async function HomeV3() {
-    let products = [];
-    let reviews = [];
+    let products: any[] = [];
+    let reviews: any[] = [];
 
     try {
         products = await getProducts();
@@ -119,7 +113,6 @@ export default async function HomeV3() {
         console.error("Failed to fetch reviews", e);
     }
 
-    // ── Product Filters ──────────────────────────────────────
     const bestSellers = products
         .filter((p) => p.badge || p.featured)
         .sort(() => 0.5 - Math.random())
@@ -134,24 +127,13 @@ export default async function HomeV3() {
     const riceProducts = products.filter((p) => p.category === "Rice");
     const pulses = products.filter((p) => p.category === "Pulses" || p.category === "Dal");
 
-    // ══════════════════════════════════════════════════════════
-    //  THE STORY BEGINS
-    // ══════════════════════════════════════════════════════════
-
     return (
         <main className="flex min-h-screen flex-col bg-creme dark:bg-midnight transition-colors duration-500">
-            {/* JSON-LD Schema */}
             <FAQPageSchema faqs={homePageFAQs} />
             <HowToSchema {...gheeHowTo} />
 
-            {/* ═══════════════════════════════════════════════
-                ACT 1: THE PROMISE — Hook their heart
-               ═══════════════════════════════════════════════ */}
             <HeroSlider />
 
-            {/* ═══════════════════════════════════════════════
-                ACT 2: THE CRISIS — Show the problem
-               ═══════════════════════════════════════════════ */}
             <StoryTransition
                 text="But first… do you know what's really in your milk?"
                 theme="dramatic"
@@ -161,9 +143,6 @@ export default async function HomeV3() {
             <StoryTransition text="Take the test. Most Indian kitchens fail." />
             <KitchenQuizDark />
 
-            {/* ═══════════════════════════════════════════════
-                ACT 3: THE ORIGIN — Introduce the hero
-               ═══════════════════════════════════════════════ */}
             <StoryTransition
                 text="This is what drives us — a sacred duty to Dharti Mata and Gau Mata."
                 theme="gradient"
@@ -177,25 +156,17 @@ export default async function HomeV3() {
             <OurMission />
             <MissionBridge />
 
-            {/* ═══════════════════════════════════════════════
-                ACT 4: THE PROOF — Show what we built
-               ═══════════════════════════════════════════════ */}
             <StoryTransition text="Purity demands responsibility. Here's ours." />
             <SustainabilityImpactDark />
             <PremiumStats />
 
-            {/* ═══════════════════════════════════════════════
-                ACT 5: THE PRODUCTS — The solutions
-               ═══════════════════════════════════════════════ */}
             <StoryTransition
                 text="Now, experience the result — food you can finally trust."
                 theme="gradient"
             />
 
-            {/* Quick Navigation */}
             <CategoryIconStrip />
 
-            {/* Customer Favorites */}
             <ProductCollection
                 items={bestSellers}
                 title="Customer Favorites"
@@ -204,11 +175,9 @@ export default async function HomeV3() {
                 backgroundTheme="light"
             />
 
-            {/* Ghee — The Flagship */}
             <StoryTransition text="Our most sacred product — churned the Vedic way." />
             <GheeSpotlight />
 
-            {/* Cold Pressed Oils — The Kitchen */}
             <ProductCollection
                 items={coldPressedOils}
                 category="Oils"
@@ -218,7 +187,6 @@ export default async function HomeV3() {
                 backgroundTheme="creme"
             />
 
-            {/* Milk — The Daily Ritual */}
             <StoryTransition
                 text="Fresh at 4 AM. At your doorstep by 8 AM. Every single morning."
                 theme="gradient"
@@ -232,7 +200,6 @@ export default async function HomeV3() {
                 backgroundTheme="light"
             />
 
-            {/* Grains — The Staples */}
             <ProductCollection
                 items={grains}
                 category="Atta"
@@ -242,7 +209,6 @@ export default async function HomeV3() {
                 backgroundTheme="creme"
             />
 
-            {/* Honey — The Forest */}
             <StoryTransition text="Straight from wild forest beehives to your kitchen." />
             <ProductCollection
                 items={honeyProducts}
@@ -253,7 +219,6 @@ export default async function HomeV3() {
                 backgroundTheme="light"
             />
 
-            {/* Rice — The Health Choice */}
             <ProductCollection
                 items={riceProducts}
                 category="Rice"
@@ -263,7 +228,6 @@ export default async function HomeV3() {
                 backgroundTheme="creme"
             />
 
-            {/* Wellness — The Healing */}
             <StoryTransition text="Ancient Ayurvedic remedies, reimagined for the modern Indian home." />
             <ProductCollection
                 items={wellnessProducts}
@@ -273,7 +237,6 @@ export default async function HomeV3() {
                 backgroundTheme="light"
             />
 
-            {/* Pulses */}
             <ProductCollection
                 items={pulses}
                 category="Pulses"
@@ -283,37 +246,26 @@ export default async function HomeV3() {
                 backgroundTheme="creme"
             />
 
-            {/* ═══════════════════════════════════════════════
-                ACT 6: TRUST — Validate everything
-               ═══════════════════════════════════════════════ */}
             <StoryTransition text="Don't just trust us. Verify." theme="gradient" />
 
-            {/* Lab Reports — The Proof */}
             <LabReports />
 
-            {/* Social Proof Block */}
             <GoogleReviews reviews={reviews} />
             <TrustStrip />
             <ExpertPanel />
             <WallOfLove />
 
-            {/* ═══════════════════════════════════════════════
-                ACT 7: ACTION — Convert & Invite
-               ═══════════════════════════════════════════════ */}
             <StoryTransition
                 text="Come see it yourself. Walk our farms. Meet our cows."
                 theme="gradient"
             />
 
-            {/* Combos & Farm Tour */}
             <ComboCarousel />
             <FreshDelivery />
             <FarmTourCTA />
 
-            {/* Community */}
             <FouitaInstagramWidget />
 
-            {/* Support */}
             <FAQSection />
             <Newsletter />
         </main>
