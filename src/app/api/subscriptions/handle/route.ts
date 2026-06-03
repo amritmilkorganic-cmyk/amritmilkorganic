@@ -5,7 +5,10 @@
 
 import { decrypt, parseResponse } from "@/lib/ccavenue";
 import { writeClient } from "@/lib/sanity";
-import { createOrder } from "@/lib/sanity-orders";
+import {
+    createOrder,
+    updateOrderPaymentStatus,
+} from "@/lib/sanity-orders";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +27,7 @@ export async function POST(req: NextRequest) {
 
         if (!encResponse) {
             console.error("[Subscription] No encrypted response from CCAvenue");
+
             return NextResponse.redirect(
                 new URL("/subscription/failed?reason=no_response", req.url),
                 303
@@ -48,19 +52,22 @@ export async function POST(req: NextRequest) {
             statusMessage: responseParams.status_message,
             failureMessage: responseParams.failure_message,
             amount: responseParams.amount,
+            trackingId: responseParams.tracking_id,
         });
 
         if (isSuccess) {
-            const customerName = responseParams.billing_name || "";
+            const customerName = responseParams.billing_name || "Customer Name";
             const email = responseParams.billing_email || "";
             const phone = responseParams.billing_tel || "";
             const address = responseParams.billing_address || "";
             const city = responseParams.billing_city || "";
             const state = responseParams.billing_state || "";
             const pincode = responseParams.billing_zip || "";
+
             const productId = responseParams.merchant_param2 || "unknown";
             const planType = responseParams.merchant_param3 || "one_time";
-            const productName = responseParams.merchant_param4 || "Subscription Product";
+            const productName =
+                responseParams.merchant_param4 || "Subscription Product";
 
             const subscription = {
                 _type: "subscription",
@@ -103,7 +110,10 @@ export async function POST(req: NextRequest) {
                 await writeClient.create(subscription);
                 console.log(`[Subscription] Created ${subscriptionId}`);
             } catch (sanityError) {
-                console.error("[Subscription] Sanity create failed:", sanityError);
+                console.error(
+                    "[Subscription] Sanity subscription create failed:",
+                    sanityError
+                );
             }
 
             try {
@@ -115,6 +125,7 @@ export async function POST(req: NextRequest) {
                     city,
                     state,
                     pincode,
+
                     items: [
                         {
                             title: `${productName} (${planType})`,
@@ -122,6 +133,7 @@ export async function POST(req: NextRequest) {
                             price: `₹${amount}`,
                         },
                     ],
+
                     subtotal: amount,
                     deliveryFee: 0,
                     discount: 0,
@@ -130,11 +142,20 @@ export async function POST(req: NextRequest) {
                     paymentMethod: "ccavenue",
                 });
 
+                await updateOrderPaymentStatus(
+                    orderNumber,
+                    "success",
+                    responseParams.tracking_id
+                );
+
                 console.log(
-                    `[Subscription] Linked normal order created: ${orderNumber} for ${subscriptionId}`
+                    `[Subscription] Linked normal order created and marked paid: ${orderNumber} for ${subscriptionId}`
                 );
             } catch (orderError) {
-                console.error("[Subscription] Normal order create failed:", orderError);
+                console.error(
+                    "[Subscription] Normal order create/update failed:",
+                    orderError
+                );
             }
 
             return NextResponse.redirect(
