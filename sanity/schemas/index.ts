@@ -6,11 +6,13 @@ import instagramPost from "./instagramPost";
 import order from "./order";
 import product from "./product";
 import siteSettings from "./siteSettings";
+import subscription from "./subscription";
 
 export const schemaTypes = [
     product,
     blog,
     order,
+    subscription,
     contactQuery,
     instagramPost,
     googleReview,
