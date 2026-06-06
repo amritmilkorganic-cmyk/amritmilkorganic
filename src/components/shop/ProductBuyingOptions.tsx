@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { AddToCartButton } from "@/components/shop/AddToCartButton";
 import { SubscriptionPlanSelector } from "@/components/shop/SubscriptionPlanSelector";
 import { ShareButton } from "@/components/shop/ShareButton";
@@ -27,7 +26,7 @@ interface ProductBuyingOptionsProps {
         description: string;
         sku?: string;
         variants?: Variant[];
-        subscription?: boolean; // Add subscription flag to product interface
+        subscription?: boolean;
     };
 }
 
@@ -35,14 +34,16 @@ export function ProductBuyingOptions({ product }: ProductBuyingOptionsProps) {
     const [buyMode, setBuyMode] = useState<"subscription" | "onetime">("subscription");
     const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
 
-    // Initialize variant on load
+    const [customerName, setCustomerName] = useState("");
+    const [customerEmail, setCustomerEmail] = useState("");
+    const [customerPhone, setCustomerPhone] = useState("");
+
     useEffect(() => {
         if (product.variants && product.variants.length > 0) {
             setSelectedVariant(product.variants[0]);
         }
     }, [product]);
 
-    // Helper to parse price string/number to number
     const getPriceValue = (price: string | number | undefined) => {
         if (!price) return 0;
         if (typeof price === "number") return price;
@@ -52,20 +53,31 @@ export function ProductBuyingOptions({ product }: ProductBuyingOptionsProps) {
     const currentPrice = selectedVariant
         ? getPriceValue(selectedVariant.price)
         : getPriceValue(product.price);
+
     const currentRegularPrice = selectedVariant
         ? getPriceValue(selectedVariant.regularPrice)
         : getPriceValue(product.regularPrice);
+
     const currentSku = selectedVariant ? selectedVariant.sku : product.sku;
+
     const currentTitle = selectedVariant
         ? `${product.title} - ${selectedVariant.title}`
         : product.title;
 
     const handleSubscribe = async (planId: string, totalAmount: number) => {
-        const customerDetails = {
-            name: "Customer Name", // Ideally from auth/form
-            email: "customer@example.com",
-            phone: "9876543210",
-        };
+        const cleanName = customerName.trim();
+        const cleanEmail = customerEmail.trim();
+        const cleanPhone = customerPhone.trim();
+
+        if (!cleanName || !cleanEmail || !cleanPhone) {
+            alert("Please enter your name, email and mobile number before subscribing.");
+            return;
+        }
+
+        if (cleanPhone.length < 10) {
+            alert("Please enter a valid mobile number.");
+            return;
+        }
 
         try {
             const response = await fetch("/api/subscriptions/create", {
@@ -77,9 +89,9 @@ export function ProductBuyingOptions({ product }: ProductBuyingOptionsProps) {
                     quantity: 1,
                     price: totalAmount,
                     planType: planId,
-                    customerName: customerDetails.name,
-                    customerEmail: customerDetails.email,
-                    customerPhone: customerDetails.phone,
+                    customerName: cleanName,
+                    customerEmail: cleanEmail,
+                    customerPhone: cleanPhone,
                     startDate: new Date().toISOString().split("T")[0],
                 }),
             });
@@ -87,7 +99,6 @@ export function ProductBuyingOptions({ product }: ProductBuyingOptionsProps) {
             const data = await response.json();
 
             if (data.success) {
-                // Submit encrypted data to CCAvenue
                 const form = document.createElement("form");
                 form.method = "POST";
                 form.action = data.ccavenueUrl;
@@ -113,21 +124,16 @@ export function ProductBuyingOptions({ product }: ProductBuyingOptionsProps) {
         }
     };
 
-    // Detect if this is a milk product specifically
-    // STRICT check to ensure we don't show milk pricing for other dairy items
-    // Also used as the GATEKEEPER for subscription eligibility
     const isMilkProduct =
         product.category === "Dairy" &&
         product.slug.includes("milk") &&
         !product.slug.includes("colostrum");
 
     const isSubscriptionEligible =
-        isMilkProduct && // 🔥 CRITICAL: ONLY MILK PRODUCTS CAN BE SUBSCRIBED
-        (selectedVariant?.subscription === true || // Trust variant flag if present
-            (selectedVariant?.subscription !== false && // Otherwise check product flag
-                product.subscription === true));
+        isMilkProduct &&
+        (selectedVariant?.subscription === true ||
+            (selectedVariant?.subscription !== false && product.subscription === true));
 
-    // Default to subscription for eligible products
     useEffect(() => {
         if (isSubscriptionEligible) {
             setBuyMode("subscription");
@@ -138,14 +144,15 @@ export function ProductBuyingOptions({ product }: ProductBuyingOptionsProps) {
 
     return (
         <div className="space-y-6">
-            {/* Dynamic Price Display */}
             <div className="flex items-baseline gap-4 pb-4 border-b border-theme-light/30">
                 <p className="text-4xl md:text-5xl font-bold text-theme-accent">₹{currentPrice}</p>
+
                 {!!currentRegularPrice && currentRegularPrice > currentPrice && (
                     <p className="text-xl text-theme-muted line-through font-light">
                         ₹{currentRegularPrice}
                     </p>
                 )}
+
                 {isMilkProduct && (
                     <span className="text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-md">
                         per litre
@@ -153,7 +160,6 @@ export function ProductBuyingOptions({ product }: ProductBuyingOptionsProps) {
                 )}
             </div>
 
-            {/* Lucknow-Only Delivery Notice for Milk */}
             {isMilkProduct && (
                 <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-xl">
                     <MapPin className="w-5 h-5 text-terracotta dark:text-gold flex-shrink-0" />
@@ -164,12 +170,12 @@ export function ProductBuyingOptions({ product }: ProductBuyingOptionsProps) {
                 </div>
             )}
 
-            {/* Variant Selector */}
             {product.variants && product.variants.length > 0 && (
                 <div className="space-y-3 pt-2">
                     <span className="text-sm font-bold text-theme-primary uppercase tracking-wider">
                         Select Size / Weight
                     </span>
+
                     {product.variants.length === 1 ? (
                         <div className="inline-flex items-center px-4 py-2 rounded-lg bg-theme-elevated border border-theme-accent/50 text-theme-primary font-medium">
                             <span className="text-theme-muted mr-2 font-normal">Pack Size:</span>
@@ -195,10 +201,8 @@ export function ProductBuyingOptions({ product }: ProductBuyingOptionsProps) {
                 </div>
             )}
 
-            {/* Purchase Options for Subscription-Eligible Products */}
             {isSubscriptionEligible ? (
                 <div className="space-y-4 pt-2">
-                    {/* Mode Toggle Tabs */}
                     <div className="flex rounded-xl border border-terracotta/30 dark:border-gold/30 overflow-hidden">
                         <button
                             onClick={() => setBuyMode("subscription")}
@@ -210,6 +214,7 @@ export function ProductBuyingOptions({ product }: ProductBuyingOptionsProps) {
                         >
                             🥛 Subscribe & Save
                         </button>
+
                         <button
                             onClick={() => setBuyMode("onetime")}
                             className={`flex-1 py-3 px-4 text-sm font-bold transition-all border-l border-terracotta/30 dark:border-gold/30 ${
@@ -232,6 +237,7 @@ export function ProductBuyingOptions({ product }: ProductBuyingOptionsProps) {
                                     Best Value
                                 </span>
                             </div>
+
                             {isMilkProduct && (
                                 <p className="text-sm text-espresso/70 dark:text-ivory/70">
                                     Fresh A2 milk delivered daily to your door at{" "}
@@ -240,6 +246,37 @@ export function ProductBuyingOptions({ product }: ProductBuyingOptionsProps) {
                                     </span>
                                 </p>
                             )}
+
+                            <div className="space-y-3 p-4 rounded-xl bg-white/70 dark:bg-midnight/40 border border-terracotta/20 dark:border-gold/20">
+                                <p className="text-sm font-bold text-theme-primary">
+                                    Enter customer details for subscription
+                                </p>
+
+                                <input
+                                    type="text"
+                                    value={customerName}
+                                    onChange={(e) => setCustomerName(e.target.value)}
+                                    placeholder="Full Name"
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-midnight text-sm outline-none focus:border-terracotta dark:focus:border-gold"
+                                />
+
+                                <input
+                                    type="email"
+                                    value={customerEmail}
+                                    onChange={(e) => setCustomerEmail(e.target.value)}
+                                    placeholder="Email Address"
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-midnight text-sm outline-none focus:border-terracotta dark:focus:border-gold"
+                                />
+
+                                <input
+                                    type="tel"
+                                    value={customerPhone}
+                                    onChange={(e) => setCustomerPhone(e.target.value)}
+                                    placeholder="Mobile Number"
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-midnight text-sm outline-none focus:border-terracotta dark:focus:border-gold"
+                                />
+                            </div>
+
                             <SubscriptionPlanSelector
                                 productId={product.id}
                                 productName={currentTitle}
@@ -257,6 +294,7 @@ export function ProductBuyingOptions({ product }: ProductBuyingOptionsProps) {
                                     </p>
                                 </div>
                             )}
+
                             <div className="flex flex-wrap gap-4">
                                 <AddToCartButton
                                     id={product.id}
@@ -273,7 +311,6 @@ export function ProductBuyingOptions({ product }: ProductBuyingOptionsProps) {
                     )}
                 </div>
             ) : (
-                /* Non-subscription products: just show Add to Cart */
                 <div className="flex flex-wrap gap-4 pt-4">
                     <AddToCartButton
                         id={product.id}
