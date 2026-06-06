@@ -49,6 +49,12 @@ export default {
             type: "object",
             fields: [
                 {
+                    name: "planType",
+                    title: "Plan Type",
+                    type: "string",
+                    description: "Plan type stored inside plan object",
+                },
+                {
                     name: "frequency",
                     title: "Delivery Frequency",
                     type: "string",
@@ -145,6 +151,7 @@ export default {
             customerName: "customer.name",
             productName: "product.name",
             planType: "planType",
+            nestedPlanType: "plan.planType",
             frequency: "plan.frequency",
             status: "status",
         },
@@ -152,12 +159,15 @@ export default {
             customerName,
             productName,
             planType,
+            nestedPlanType,
             frequency,
             status,
         }: any) {
             return {
                 title: `${customerName || "Customer"} - ${productName || "Subscription"}`,
-                subtitle: `${planType || frequency || "Plan"} | ${status || "active"}`,
+                subtitle: `${planType || nestedPlanType || frequency || "Plan"} | ${
+                    status || "active"
+                }`,
             };
         },
     },
