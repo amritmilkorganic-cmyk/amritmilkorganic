@@ -83,6 +83,19 @@ export default defineType({
             initialValue: 0,
         }),
         defineField({
+            name: "couponCode",
+            title: "Coupon Code",
+            type: "string",
+            description: "Coupon code applied by customer, if any.",
+        }),
+        defineField({
+            name: "discount",
+            title: "Discount",
+            type: "number",
+            initialValue: 0,
+            description: "Discount amount applied on this order.",
+        }),
+        defineField({
             name: "total",
             title: "Total Amount",
             type: "number",
