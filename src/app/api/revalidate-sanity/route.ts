@@ -6,12 +6,14 @@ export const dynamic = "force-dynamic";
 
 /**
  * Sanity Revalidation Webhook
- * This endpoint is called by Sanity when content changes.
+ * Safer version to reduce unnecessary ISR writes on Vercel.
  */
 export async function POST(req: NextRequest) {
     try {
-        const secret = process.env.SANITY_REVALIDATE_SECRET || process.env.REVALIDATION_SECRET;
-        
+        const secret =
+            process.env.SANITY_REVALIDATE_SECRET ||
+            process.env.REVALIDATION_SECRET;
+
         if (!secret) {
             console.error("[Sanity Revalidate] No secret configured");
             return new Response("No secret configured", { status: 500 });
@@ -31,39 +33,59 @@ export async function POST(req: NextRequest) {
         const bodyAny = body as any;
         const type = bodyAny._type;
         const slug = bodyAny.slug?.current;
-        console.log(`[Sanity Revalidate] Revalidating type: ${type}${slug ? ` (slug: ${slug})` : ""}`);
 
-        // Revalidate by tag
+        console.log(
+            `[Sanity Revalidate] Revalidating type: ${type}${
+                slug ? ` (slug: ${slug})` : ""
+            }`
+        );
+
+        // Revalidate specific content type
         revalidateTag(type);
+
+        // Revalidate specific document slug where available
         if (slug) {
             revalidateTag(`${type}:${slug}`);
         }
-        revalidateTag("all");
 
-        // Map types to paths
+        // Revalidate only relevant paths
         if (type === "product") {
             revalidatePath("/products");
-            revalidatePath("/products/[slug]", "page");
-            revalidatePath("/", "page");
-        } else if (type === "instagramPost") {
-            revalidatePath("/", "page");
-        } else if (type === "googleReview") {
-            revalidatePath("/", "page");
-        } else if (type === "post" || type === "blog") {
-            revalidatePath("/blog");
-            revalidatePath("/blog/[slug]", "page");
-            revalidatePath("/", "page");
-        } else if (type === "siteSettings") {
-            revalidatePath("/", "page");
-            revalidatePath("/", "layout");
+
+            if (slug) {
+                revalidatePath(`/products/${slug}`);
+            }
+
+            revalidatePath("/");
         }
 
-        // Always revalidate home page for safety
-        revalidatePath("/");
+        if (type === "instagramPost") {
+            revalidatePath("/");
+        }
+
+        if (type === "googleReview") {
+            revalidatePath("/");
+        }
+
+        if (type === "post" || type === "blog") {
+            revalidatePath("/blog");
+
+            if (slug) {
+                revalidatePath(`/blog/${slug}`);
+            }
+
+            revalidatePath("/");
+        }
+
+        if (type === "siteSettings") {
+            revalidatePath("/");
+            revalidatePath("/", "layout");
+        }
 
         return NextResponse.json({
             revalidated: true,
             type,
+            slug: slug || null,
             timestamp: new Date().toISOString(),
         });
     } catch (err: any) {
