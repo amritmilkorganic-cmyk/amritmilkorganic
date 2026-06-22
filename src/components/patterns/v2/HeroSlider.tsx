@@ -22,7 +22,7 @@ const slides = [
         subtitle: "Serving 700+ Families Daily | 20M+ Bottles Sold",
         description:
             "Pure A2 Milk, Bilona Ghee, and Organic Grains — crafted with love for the children of the Amrit Family since 12+ years.",
-        image: "/assets/img/products/amrit_milk_new_bottle_hero.png",
+        image: "/assets/img/amrit_milk_new_bottle_hero.png?v=2",
         cta: "Experience Amrit Products",
         link: "/products",
         secondaryCta: "BEHOLD THE FARM",
@@ -156,10 +156,11 @@ export function HeroSlider() {
                     <button
                         key={index}
                         onClick={() => setCurrentSlide(index)}
-                        className={`w-3 h-3 rounded-full transition-all duration-300 ${index === currentSlide
-                            ? "bg-terracotta w-8"
-                            : "bg-white/50 hover:bg-white"
-                            }`}
+                        className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                            index === currentSlide
+                                ? "bg-terracotta w-8"
+                                : "bg-white/50 hover:bg-white"
+                        }`}
                         aria-label={`Go to slide ${index + 1}`}
                     />
                 ))}
