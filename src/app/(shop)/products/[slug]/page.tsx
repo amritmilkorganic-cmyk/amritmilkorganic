@@ -30,8 +30,9 @@ import { notFound } from "next/navigation";
 
 export async function generateStaticParams() {
     const products = await getProducts();
+
     return products
-        .filter((product) => product.slug !== "golden-healing-duo") // Exclude problematic page from build
+        .filter((product) => product.slug !== "golden-healing-duo")
         .map((product) => ({
             slug: product.slug,
         }));
@@ -43,16 +44,21 @@ export async function generateMetadata({
     params: { slug: string };
 }): Promise<Metadata> {
     try {
-        const product = await getProductBySlug(params.slug);
+        const products = await getProducts();
+
+        const product =
+            products.find((p: any) => p.slug === params.slug) ||
+            (await getProductBySlug(params.slug));
+
         if (!product) return {};
 
         const title = `${product.title} | Amrit Milk Organic`;
         const description = product.description;
 
-        // Use actual product image for social sharing
-        // The product images are already optimized - most are under 800KB
-        // Absolute URLs are required for OG tags
-        const productImage = product.image || "/assets/img/amrit-logo-transparent.png";
+        const productImage =
+            product.image ||
+            "/assets/img/amrit-logo-transparent.png";
+
         const imageUrl = productImage.startsWith("http")
             ? productImage
             : `https://amritmilkorganic.com${productImage}`;
@@ -60,14 +66,17 @@ export async function generateMetadata({
         return {
             title,
             description,
+
             alternates: {
                 canonical: `https://amritmilkorganic.com/products/${params.slug}`,
             },
+
             openGraph: {
                 title,
                 description,
                 url: `https://amritmilkorganic.com/products/${params.slug}`,
                 siteName: "Amrit Milk Organic",
+
                 images: [
                     {
                         url: imageUrl,
@@ -78,8 +87,10 @@ export async function generateMetadata({
                         type: "image/png",
                     },
                 ],
+
                 type: "website",
             },
+
             twitter: {
                 card: "summary_large_image",
                 title,
@@ -88,7 +99,11 @@ export async function generateMetadata({
             },
         };
     } catch (error) {
-        console.error(`Error generating metadata for ${params.slug}:`, error);
+        console.error(
+            `Error generating metadata for ${params.slug}:`,
+            error
+        );
+
         return {
             title: "Amrit Milk Organic Product",
             description: "View our premium organic milk products.",
@@ -96,11 +111,28 @@ export async function generateMetadata({
     }
 }
 
-export default async function ProductPage({ params }: { params: { slug: string } }) {
+export default async function ProductPage({
+    params,
+}: {
+    params: { slug: string };
+}) {
     try {
         const { slug } = params;
+
         const products = await getProducts();
-        const basicProduct = await getProductBySlug(slug);
+
+        const basicProduct =
+            products.find((p: any) => p.slug === slug) ||
+            (await getProductBySlug(slug));
+
+        console.log("DEBUG URL SLUG:", slug);
+
+        console.log(
+            "DEBUG SANITY SLUGS:",
+            products.map((p: any) => p.slug)
+        );
+
+        console.log("DEBUG MATCH:", basicProduct);
 
         if (!basicProduct) {
             notFound();
@@ -108,43 +140,67 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
         // Get specific content based on category or slug
         let contentKey = basicProduct.category;
-        if ((basicProduct.title || "").toLowerCase().includes("ghee")) contentKey = "ghee"; // Force ghee if title has it
+
+        if (
+            (basicProduct.title || "")
+                .toLowerCase()
+                .includes("ghee")
+        ) {
+            contentKey = "ghee";
+        }
+
         const content = getContentForProduct(contentKey);
 
-        // Recommended products (same category, excluding current)
+        // Recommended products
         const recommendedProducts = products
             .filter(
-                (p: any) => p.category === basicProduct.category && p.slug !== basicProduct.slug
+                (p: any) =>
+                    p.category === basicProduct.category &&
+                    p.slug !== basicProduct.slug
             )
             .slice(0, 4);
 
-        // Best selling products (those with Best Seller badge or first 4)
+        // Best selling products
         const bestSellingProducts = products
             .filter(
                 (p: any) =>
-                    (p.badge || "").toLowerCase().includes("seller") ||
-                    (p.badge || "").toLowerCase().includes("value") ||
+                    (p.badge || "")
+                        .toLowerCase()
+                        .includes("seller") ||
+                    (p.badge || "")
+                        .toLowerCase()
+                        .includes("value") ||
                     p.featured
             )
             .slice(0, 4);
 
-        // Other products (randomly selected from other categories)
+        // Other products
         const otherProducts = products
-            .filter((p: any) => p.category !== basicProduct.category)
+            .filter(
+                (p: any) =>
+                    p.category !== basicProduct.category
+            )
             .sort(() => 0.5 - Math.random())
             .slice(0, 4);
 
         // Parse price for Schema.org
-        const priceValue = (basicProduct.price || "0").replace(/[^0-9.]/g, "");
+        const priceValue = (
+            basicProduct.price || "0"
+        ).replace(/[^0-9.]/g, "");
 
         return (
             <main className="bg-theme-primary min-h-screen">
+
                 {/* Product Schema Markup */}
+
                 <ProductSchema
                     name={basicProduct.title}
                     description={basicProduct.description}
                     image={basicProduct.image}
-                    sku={basicProduct.sku || basicProduct.slug}
+                    sku={
+                        basicProduct.sku ||
+                        basicProduct.slug
+                    }
                     category={basicProduct.category}
                     price={basicProduct.price}
                     currency="INR"
@@ -156,70 +212,111 @@ export default async function ProductPage({ params }: { params: { slug: string }
                 />
 
                 {/* Hero Section */}
+
                 <section className="relative pt-24 md:pt-32 pb-20 bg-gradient-to-b from-terracotta/5 dark:from-gold/5 to-transparent overflow-hidden">
+
                     <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-terracotta/5 dark:bg-gold/5 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
 
                     <div className="max-w-7xl mx-auto px-6">
-                        {/* Mobile Header (Title on Top) */}
+
+                        {/* Mobile Header */}
+
                         <div className="lg:hidden mb-8 text-center">
+
                             {basicProduct.badge && (
                                 <span className="inline-block px-4 py-1.5 bg-terracotta/10 dark:bg-gold/10 text-theme-accent border border-terracotta/20 dark:border-gold/20 text-[10px] font-bold uppercase tracking-[0.2em] rounded-full mb-4">
                                     {basicProduct.badge}
                                 </span>
                             )}
+
                             <h1 className="text-2xl font-serif font-bold text-theme-primary mb-4 leading-tight">
                                 {basicProduct.title}
                             </h1>
+
                             <div className="flex items-center justify-center gap-4 mb-2">
+
                                 <div className="flex text-theme-accent">
                                     {[...Array(5)].map((_, i) => (
-                                        <Star key={i} className="w-4 h-4 fill-current" />
+                                        <Star
+                                            key={i}
+                                            className="w-4 h-4 fill-current"
+                                        />
                                     ))}
                                 </div>
+
                                 <span className="text-xs text-theme-muted font-medium">
                                     4.9/5 (240+ Reviews)
                                 </span>
+
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-start">
+
                             {/* Product Image */}
+
                             <div className="sticky top-24">
+
                                 <div className="relative aspect-square rounded-[2rem] overflow-hidden bg-theme-secondary border border-theme-light group">
+
                                     <div className="absolute inset-0 bg-gradient-to-br from-terracotta/10 dark:from-gold/10 via-transparent to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-700"></div>
+
                                     <Image
-                                        src={basicProduct.image || "/assets/img/amrit-logo-transparent.png"}
+                                        src={
+                                            basicProduct.image ||
+                                            "/assets/img/amrit-logo-transparent.png"
+                                        }
                                         alt={basicProduct.title}
                                         width={800}
                                         height={800}
                                         className="relative z-10 w-full h-full object-contain p-12 drop-shadow-[0_20px_50px_rgba(0,0,0,0.3)] dark:drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)] transform transition-transform duration-700 group-hover:scale-105"
                                         priority
                                     />
+
                                 </div>
 
                                 {/* Trust Badges */}
+
                                 <div className="mt-8 grid grid-cols-3 gap-4">
+
                                     {[
-                                        { icon: ShieldCheck, label: "100% Pure" },
-                                        { icon: Truck, label: "Fast Delivery" },
-                                        { icon: Zap, label: "Farm Fresh" },
+                                        {
+                                            icon: ShieldCheck,
+                                            label: "100% Pure",
+                                        },
+                                        {
+                                            icon: Truck,
+                                            label: "Fast Delivery",
+                                        },
+                                        {
+                                            icon: Zap,
+                                            label: "Farm Fresh",
+                                        },
                                     ].map((item, i) => (
+
                                         <div
                                             key={i}
                                             className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-theme-elevated border border-theme-light"
                                         >
+
                                             <item.icon className="w-5 h-5 text-theme-accent" />
+
                                             <span className="text-[10px] uppercase tracking-widest text-theme-muted font-bold">
                                                 {item.label}
                                             </span>
+
                                         </div>
                                     ))}
+
                                 </div>
                             </div>
 
                             {/* Product Info */}
+
                             <div className="space-y-8">
+
                                 <div>
+
                                     {basicProduct.badge && (
                                         <span className="hidden lg:inline-block px-4 py-1.5 bg-terracotta/10 dark:bg-gold/10 text-theme-accent border border-terracotta/20 dark:border-gold/20 text-[10px] font-bold uppercase tracking-[0.2em] rounded-full mb-6">
                                             {basicProduct.badge}
@@ -231,59 +328,106 @@ export default async function ProductPage({ params }: { params: { slug: string }
                                     </h1>
 
                                     <div className="hidden lg:flex items-center gap-4 mb-6">
+
                                         <div className="flex text-theme-accent">
+
                                             {[...Array(5)].map((_, i) => (
-                                                <Star key={i} className="w-4 h-4 fill-current" />
+                                                <Star
+                                                    key={i}
+                                                    className="w-4 h-4 fill-current"
+                                                />
                                             ))}
+
                                         </div>
+
                                         <span className="text-sm text-theme-muted font-medium">
                                             4.9/5 (240+ Reviews)
                                         </span>
-                                    </div>
 
-                                    {/* Price moved to ProductBuyingOptions for dynamic updates */}
+                                    </div>
                                 </div>
 
                                 <p className="text-xl text-theme-secondary leading-relaxed font-light">
                                     {basicProduct.description}
                                 </p>
 
-                                {slug === "panchamrit-custom-combo" ? (
-                                    <ComboBuilder product={basicProduct} />
+                                {slug ===
+                                "panchamrit-custom-combo" ? (
+
+                                    <ComboBuilder
+                                        product={basicProduct}
+                                    />
+
                                 ) : (
-                                    <ProductBuyingOptions product={basicProduct} />
+
+                                    <ProductBuyingOptions
+                                        product={basicProduct}
+                                    />
+
                                 )}
 
                                 {/* Delivery Info */}
+
                                 <div className="p-6 rounded-2xl bg-theme-elevated border border-theme-light space-y-4">
+
                                     <div className="flex items-center gap-4 text-theme-secondary">
+
                                         <Truck className="w-5 h-5 text-theme-accent" />
+
                                         <span className="text-sm">
                                             Free delivery on orders above ₹500
                                         </span>
+
                                     </div>
+
                                     <div className="flex items-center gap-4 text-theme-secondary">
+
                                         <ShieldCheck className="w-5 h-5 text-theme-accent" />
+
                                         <span className="text-sm">
                                             Quality Guaranteed or Money Back
                                         </span>
+
                                     </div>
                                 </div>
 
-                                {/* New Product Detail Sections */}
+                                {/* Product Detail Sections */}
+
                                 {(basicProduct.highlights ||
                                     basicProduct.ingredients ||
                                     basicProduct.benefits ||
                                     basicProduct.howToUse) && (
+
                                     <div className="space-y-8 p-6 rounded-2xl bg-gradient-to-br from-theme-elevated to-theme-secondary/30 border border-theme-light">
+
                                         <ProductHighlightsSection
-                                            highlights={basicProduct.highlights || []}
+                                            highlights={
+                                                basicProduct.highlights ||
+                                                []
+                                            }
                                         />
+
                                         <IngredientsSection
-                                            ingredients={basicProduct.ingredients || []}
+                                            ingredients={
+                                                basicProduct.ingredients ||
+                                                []
+                                            }
                                         />
-                                        <BenefitsSection benefits={basicProduct.benefits || []} />
-                                        <HowToUseSection steps={basicProduct.howToUse || []} />
+
+                                        <BenefitsSection
+                                            benefits={
+                                                basicProduct.benefits ||
+                                                []
+                                            }
+                                        />
+
+                                        <HowToUseSection
+                                            steps={
+                                                basicProduct.howToUse ||
+                                                []
+                                            }
+                                        />
+
                                     </div>
                                 )}
                             </div>
@@ -292,248 +436,393 @@ export default async function ProductPage({ params }: { params: { slug: string }
                 </section>
 
                 {/* Content Sections */}
+
                 <div className="space-y-0">
+
                     {/* 1. What it is */}
+
                     <Section className="relative overflow-hidden">
+
                         <div className="max-w-4xl mx-auto text-center">
+
                             <span className="text-theme-accent font-bold uppercase tracking-[0.3em] text-sm mb-4 block">
                                 The Product
                             </span>
+
                             <h2 className="text-4xl md:text-5xl font-serif font-bold text-theme-primary mb-8">
                                 What it is
                             </h2>
+
                             <p className="text-xl md:text-2xl text-theme-secondary font-light leading-relaxed">
                                 {content.whatItIs}
                             </p>
+
                         </div>
+
                     </Section>
 
                     {/* 2. Why it's safe */}
+
                     <Section className="bg-theme-secondary/30">
+
                         <div className="max-w-5xl mx-auto px-6">
+
                             <div className="text-center mb-16">
+
                                 <span className="text-theme-accent font-bold uppercase tracking-[0.3em] text-sm mb-4 block">
                                     Safety First
                                 </span>
+
                                 <h2 className="text-4xl font-serif font-bold text-theme-primary">
                                     Why it&apos;s safe for families
                                 </h2>
+
                             </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
                                 {content.whySafe.map(
                                     (
                                         item: string,
-                                        i: number // Explicitly typed as string
+                                        i: number
                                     ) => (
+
                                         <div
                                             key={i}
                                             className="flex items-center gap-4 p-6 rounded-2xl bg-white dark:bg-white/5 border border-theme-light"
                                         >
+
                                             <ShieldCheck className="w-8 h-8 text-terracotta dark:text-gold" />
+
                                             <p className="text-lg font-medium text-theme-primary">
                                                 {item}
                                             </p>
+
                                         </div>
                                     )
                                 )}
+
                             </div>
                         </div>
                     </Section>
 
                     {/* 3. The Difference */}
+
                     <Section>
+
                         <div className="max-w-5xl mx-auto px-6">
+
                             <div className="text-center mb-16">
+
                                 <span className="text-theme-accent font-bold uppercase tracking-[0.3em] text-sm mb-4 block">
                                     The Amrit Standard
                                 </span>
+
                                 <h2 className="text-4xl font-serif font-bold text-theme-primary">
                                     What makes Amrit Milk different
                                 </h2>
+
                             </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
                                 {content.difference.map(
                                     (
                                         item: string,
-                                        i: number // Typed
+                                        i: number
                                     ) => (
+
                                         <div
                                             key={i}
                                             className="flex items-start gap-4 p-6 rounded-2xl bg-theme-elevated border border-terracotta/20 dark:border-gold/20"
                                         >
+
                                             <div className="w-10 h-10 rounded-full bg-terracotta text-white flex items-center justify-center flex-shrink-0">
+
                                                 <Award className="w-5 h-5" />
+
                                             </div>
+
                                             <p className="text-lg font-medium text-theme-primary pt-2">
                                                 {item}
                                             </p>
+
                                         </div>
                                     )
                                 )}
+
                             </div>
                         </div>
                     </Section>
 
                     {/* 4. Who should choose */}
+
                     <Section className="bg-theme-primary relative overflow-hidden">
-                        {/* Decorative background */}
+
                         <div className="absolute inset-0 bg-terracotta/5 dark:bg-gold/5"></div>
+
                         <div className="max-w-5xl mx-auto px-6 relative z-10">
+
                             <div className="text-center mb-16">
+
                                 <span className="text-theme-accent font-bold uppercase tracking-[0.3em] text-sm mb-4 block">
                                     Ideal For
                                 </span>
+
                                 <h2 className="text-4xl font-serif font-bold text-theme-primary">
                                     Who should choose this
                                 </h2>
+
                             </div>
+
                             <div className="flex flex-wrap justify-center gap-4">
+
                                 {content.whoShouldChoose.map(
                                     (
                                         item: string,
-                                        i: number // Typed
+                                        i: number
                                     ) => (
+
                                         <span
                                             key={i}
                                             className="px-8 py-4 rounded-full bg-white dark:bg-white/10 border border-theme-light text-xl text-theme-secondary shadow-sm"
                                         >
                                             {item}
                                         </span>
+
                                     )
                                 )}
+
                             </div>
                         </div>
                     </Section>
 
                     {/* 5. Ordering & Delivery */}
+
                     <Section>
+
                         <div className="max-w-4xl mx-auto px-6 text-center">
+
                             <span className="text-theme-accent font-bold uppercase tracking-[0.3em] text-sm mb-4 block">
                                 Service
                             </span>
+
                             <h2 className="text-4xl font-serif font-bold text-theme-primary mb-12">
                                 Ordering & Delivery
                             </h2>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+
                                 {content.ordering.map(
                                     (
                                         item: string,
-                                        i: number // Typed
+                                        i: number
                                     ) => (
-                                        <div key={i} className="flex flex-col items-center gap-4">
+
+                                        <div
+                                            key={i}
+                                            className="flex flex-col items-center gap-4"
+                                        >
+
                                             <div className="w-16 h-16 rounded-full bg-theme-secondary/10 flex items-center justify-center">
+
                                                 <Truck className="w-8 h-8 text-theme-accent" />
+
                                             </div>
+
                                             <p className="text-lg font-medium text-theme-primary">
                                                 {item}
                                             </p>
+
                                         </div>
                                     )
                                 )}
+
                             </div>
 
                             <div className="inline-block">
+
                                 <a
                                     href="https://wa.me/918130693767"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-3 bg-espresso hover:bg-espresso/90 text-white px-8 py-4 rounded-full text-lg font-bold transition-transform hover:scale-105"
                                 >
+
                                     <MessageCircle className="w-6 h-6" />
+
                                     Have a question? Talk to a human on WhatsApp
+
                                 </a>
+
                             </div>
                         </div>
                     </Section>
 
                     {/* Recommended Products */}
+
                     {recommendedProducts.length > 0 && (
+
                         <Section className="bg-theme-secondary/30">
+
                             <div className="max-w-7xl mx-auto px-6">
+
                                 <div className="flex justify-between items-end mb-12">
+
                                     <div>
+
                                         <span className="text-theme-accent font-bold uppercase tracking-[0.3em] text-sm mb-4 block">
                                             Because You Liked This
                                         </span>
+
                                         <h2 className="text-4xl font-serif font-bold text-theme-primary">
                                             Recommended for You
                                         </h2>
+
                                     </div>
-                                    <Button variant="outline" href="/products">
-                                        View All <ArrowRight className="ml-2 w-4 h-4" />
+
+                                    <Button
+                                        variant="outline"
+                                        href="/products"
+                                    >
+                                        View All
+                                        <ArrowRight className="ml-2 w-4 h-4" />
                                     </Button>
+
                                 </div>
+
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                                    {recommendedProducts.map((p: any) => (
-                                        <ProductCard key={p.id} {...p} />
-                                    ))}
+
+                                    {recommendedProducts.map(
+                                        (p: any) => (
+                                            <ProductCard
+                                                key={p.id}
+                                                {...p}
+                                            />
+                                        )
+                                    )}
+
                                 </div>
                             </div>
                         </Section>
                     )}
 
                     {/* Best Sellers */}
+
                     <Section className="bg-theme-secondary/30">
+
                         <div className="max-w-7xl mx-auto px-6">
+
                             <div className="flex justify-between items-end mb-12">
+
                                 <div>
+
                                     <span className="text-theme-accent font-bold uppercase tracking-[0.3em] text-sm mb-4 block">
                                         Popular Choices
                                     </span>
+
                                     <h2 className="text-4xl font-serif font-bold text-theme-primary">
                                         Best Sellers
                                     </h2>
+
                                 </div>
-                                <Button variant="outline" href="/products">
-                                    View All <ArrowRight className="ml-2 w-4 h-4" />
+
+                                <Button
+                                    variant="outline"
+                                    href="/products"
+                                >
+                                    View All
+                                    <ArrowRight className="ml-2 w-4 h-4" />
                                 </Button>
+
                             </div>
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                                {bestSellingProducts.map((p: any) => (
-                                    <ProductCard key={p.id} {...p} />
-                                ))}
+
+                                {bestSellingProducts.map(
+                                    (p: any) => (
+                                        <ProductCard
+                                            key={p.id}
+                                            {...p}
+                                        />
+                                    )
+                                )}
+
                             </div>
                         </div>
                     </Section>
 
                     {/* Other Products */}
+
                     <Section className="bg-theme-secondary/30">
+
                         <div className="max-w-7xl mx-auto px-6">
+
                             <div className="flex justify-between items-end mb-12">
+
                                 <div>
+
                                     <span className="text-theme-accent font-bold uppercase tracking-[0.3em] text-sm mb-4 block">
                                         Discover More
                                     </span>
+
                                     <h2 className="text-4xl font-serif font-bold text-theme-primary">
                                         You Might Also Like
                                     </h2>
+
                                 </div>
-                                <Button variant="outline" href="/products">
-                                    Explore More <ArrowRight className="ml-2 w-4 h-4" />
+
+                                <Button
+                                    variant="outline"
+                                    href="/products"
+                                >
+                                    Explore More
+                                    <ArrowRight className="ml-2 w-4 h-4" />
                                 </Button>
+
                             </div>
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                                {otherProducts.map((p: any) => (
-                                    <ProductCard key={p.id} {...p} />
-                                ))}
+
+                                {otherProducts.map(
+                                    (p: any) => (
+                                        <ProductCard
+                                            key={p.id}
+                                            {...p}
+                                        />
+                                    )
+                                )}
+
                             </div>
                         </div>
                     </Section>
+
                 </div>
             </main>
         );
+
     } catch (error) {
-        console.error(`Error rendering product page for ${params?.slug}:`, error);
+
+        console.error(
+            `Error rendering product page for ${params?.slug}:`,
+            error
+        );
+
         return (
             <main className="min-h-screen pt-32 px-6 text-center bg-theme-primary flex flex-col items-center justify-center">
+
                 <h1 className="text-2xl font-bold text-theme-primary mb-4">
                     Product Temporarily Unavailable
                 </h1>
+
                 <p className="text-theme-secondary mb-8">
                     We are having trouble loading this product. Please try again later.
                 </p>
-                <Button href="/products">Back to Shop</Button>
+
+                <Button href="/products">
+                    Back to Shop
+                </Button>
+
             </main>
         );
     }
