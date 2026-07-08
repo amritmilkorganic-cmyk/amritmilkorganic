@@ -1,8 +1,17 @@
-import { prisma } from "@/lib/prisma";
+import { writeClient } from "@/lib/sanity";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+function cleanPhoneNumber(phone: string) {
+    return phone.replace(/\D/g, "").slice(-10);
+}
+
+function safeNumber(value: any): number {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+}
 
 export async function GET(req: NextRequest) {
     try {
@@ -10,80 +19,101 @@ export async function GET(req: NextRequest) {
         const phone = searchParams.get("phone");
 
         if (!phone) {
-            return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
+            return NextResponse.json(
+                { error: "Phone number is required" },
+                { status: 400 }
+            );
         }
 
-        // Normalize phone: remove non-digits, keep last 10
-        const cleanPhone = phone.replace(/\D/g, "").slice(-10);
+        const cleanPhone = cleanPhoneNumber(phone);
 
-        // Find all orders for this phone (using contains or endsWith to be safe with +91 etc)
-        // Since sqlite/prisma string matching can be tricky with diverse formats,
-        // we'll try to match vaguely or use the exact string if consistent.
-        // For now, let's assume the frontend sends a format that matches or we search loosely.
-        const orders = await prisma.order.findMany({
-            where: {
-                phone: {
-                    contains: cleanPhone,
-                },
-            },
-            orderBy: {
-                createdAt: "desc",
-            },
-        });
+        const orders = await writeClient.fetch(
+            `*[_type == "order" && phone match $phoneMatch] | order(createdAt desc) {
+                _id,
+                orderNumber,
+                customerName,
+                email,
+                phone,
+                address,
+                city,
+                state,
+                orderStatus,
+                paymentStatus,
+                total,
+                items,
+                createdAt
+            }`,
+            { phoneMatch: `*${cleanPhone}*` }
+        );
 
-        if (orders.length === 0) {
-            return NextResponse.json({
-                exists: false,
-                profile: {
-                    name: "Guest",
-                    phone: phone,
-                    tier: "Silver",
-                    totalSpent: 0,
-                    activeSubscriptions: 0,
-                    impactPoints: 0,
-                },
-                orders: [],
-            });
-        }
+        const subscriptions = await writeClient.fetch(
+            `*[_type == "subscription" && customer.phone match $phoneMatch] | order(createdAt desc) {
+                _id,
+                subscriptionId,
+                status,
+                product,
+                plan,
+                customer,
+                createdAt
+            }`,
+            { phoneMatch: `*${cleanPhone}*` }
+        );
 
-        const lastOrder = orders[0];
+        const latestOrder = orders?.[0];
+        const latestSubscription = subscriptions?.[0];
 
-        // Calculate Stats
-        const totalSpent = orders.reduce((acc, order) => acc + order.total, 0);
+        const totalSpent = orders.reduce(
+            (sum: number, order: any) => sum + safeNumber(order.total),
+            0
+        );
 
-        // Determine Tier
-        let tier = "Silver";
+        const activeSubscriptions = subscriptions.filter(
+            (sub: any) => String(sub.status).toLowerCase() === "active"
+        ).length;
+
+        let tier = "Bronze Start";
         if (totalSpent > 15000) tier = "Platinum Elite";
         else if (totalSpent > 5000) tier = "Gold Member";
+        else if (totalSpent > 0) tier = "Bronze Start";
 
-        // Impact Points (Mock logic: 10% of spend)
-        const impactPoints = Math.floor(totalSpent * 0.1);
+        const source = latestOrder || latestSubscription?.customer || {};
 
         return NextResponse.json({
-            exists: true,
+            exists: orders.length > 0 || subscriptions.length > 0,
             profile: {
-                name: lastOrder.customerName,
-                email: lastOrder.email,
-                phone: lastOrder.phone,
-                address: lastOrder.address,
-                city: lastOrder.city,
-                state: lastOrder.state,
+                name: source.customerName || source.name || "Guest Member",
+                email: source.email || "",
+                phone: source.phone || phone,
+                address: source.address || "",
+                city: source.city || "",
+                state: source.state || "",
                 tier,
                 totalSpent,
-                activeSubscriptions: 0, // We assume 0 for now as Subscription model isn't visible yet
-                impactPoints,
+                activeSubscriptions,
+                impactPoints: Math.floor(totalSpent * 0.1),
             },
-            orders: orders.map((o) => ({
-                id: o.id,
-                orderNumber: o.orderNumber,
-                date: o.createdAt,
-                status: o.orderStatus,
-                total: o.total,
-                items: o.items, // simpler to pass raw string or parse if needed, but client can handle
+            orders: orders.map((order: any) => ({
+                id: order._id,
+                orderNumber: order.orderNumber,
+                date: order.createdAt,
+                status: order.orderStatus || order.paymentStatus || "processing",
+                total: safeNumber(order.total),
+                items: order.items || [],
+            })),
+            subscriptions: subscriptions.map((sub: any) => ({
+                id: sub._id,
+                subscriptionId: sub.subscriptionId,
+                status: sub.status,
+                product: sub.product,
+                plan: sub.plan,
+                createdAt: sub.createdAt,
             })),
         });
     } catch (error) {
         console.error("Profile fetch error:", error);
-        return NextResponse.json({ error: "Failed to fetch profile" }, { status: 500 });
+        return NextResponse.json(
+            { error: "Failed to fetch profile" },
+            { status: 500 }
+        );
     }
 }
