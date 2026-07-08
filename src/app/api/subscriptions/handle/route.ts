@@ -5,10 +5,7 @@
 
 import { decrypt, parseResponse } from "@/lib/ccavenue";
 import { writeClient } from "@/lib/sanity";
-import {
-    createOrder,
-    updateOrderPaymentStatus,
-} from "@/lib/sanity-orders";
+import { createOrder, updateOrderPaymentStatus } from "@/lib/sanity-orders";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -26,8 +23,6 @@ export async function POST(req: NextRequest) {
         const encResponse = formData.get("encResp") as string;
 
         if (!encResponse) {
-            console.error("[Subscription] No encrypted response from CCAvenue");
-
             return NextResponse.redirect(
                 new URL("/subscription/failed?reason=no_response", req.url),
                 303
@@ -44,15 +39,14 @@ export async function POST(req: NextRequest) {
         const isSuccess = orderStatus === "success";
         const amount = safeNumber(responseParams.amount);
         const subscriptionId = responseParams.order_id || `SUB-${Date.now()}`;
+        const trackingId = responseParams.tracking_id || "";
 
         console.log("[Subscription] CCAvenue Response:", {
             orderId: subscriptionId,
             rawStatus: responseParams.order_status,
             normalizedStatus: orderStatus,
-            statusMessage: responseParams.status_message,
-            failureMessage: responseParams.failure_message,
             amount: responseParams.amount,
-            trackingId: responseParams.tracking_id,
+            trackingId,
         });
 
         if (isSuccess) {
@@ -72,36 +66,30 @@ export async function POST(req: NextRequest) {
             const subscription = {
                 _type: "subscription",
                 subscriptionId,
-
                 customer: {
                     name: customerName,
                     email,
                     phone,
                     address: `${address}, ${city}, ${pincode}`,
                 },
-
                 product: {
                     productId,
                     name: productName,
                     quantity: 1,
                     price: amount,
                 },
-
                 plan: {
                     planType,
                     startDate: new Date().toISOString().split("T")[0],
                     nextDelivery: new Date(Date.now() + 86400000).toISOString(),
                 },
-
                 status: "active",
                 paymentMethod: "prepaid_one_time",
-
                 ccavenueData: {
-                    subscriptionRefNo: responseParams.tracking_id || "",
+                    subscriptionRefNo: trackingId,
                     mandateId: "N/A",
                     cardToken: responseParams.card_name || "",
                 },
-
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             };
@@ -110,10 +98,7 @@ export async function POST(req: NextRequest) {
                 await writeClient.create(subscription);
                 console.log(`[Subscription] Created ${subscriptionId}`);
             } catch (sanityError) {
-                console.error(
-                    "[Subscription] Sanity subscription create failed:",
-                    sanityError
-                );
+                console.error("[Subscription] Sanity subscription create failed:", sanityError);
             }
 
             try {
@@ -125,7 +110,6 @@ export async function POST(req: NextRequest) {
                     city,
                     state,
                     pincode,
-
                     items: [
                         {
                             title: `${productName} (${planType})`,
@@ -133,7 +117,6 @@ export async function POST(req: NextRequest) {
                             price: `₹${amount}`,
                         },
                     ],
-
                     subtotal: amount,
                     deliveryFee: 0,
                     discount: 0,
@@ -142,33 +125,22 @@ export async function POST(req: NextRequest) {
                     paymentMethod: "ccavenue",
                 });
 
-                await updateOrderPaymentStatus(
-                    orderNumber,
-                    "success",
-                    responseParams.tracking_id
-                );
+                await updateOrderPaymentStatus(orderNumber, "success", trackingId);
 
                 console.log(
                     `[Subscription] Linked normal order created and marked paid: ${orderNumber} for ${subscriptionId}`
                 );
             } catch (orderError) {
-                console.error(
-                    "[Subscription] Normal order create/update failed:",
-                    orderError
-                );
+                console.error("[Subscription] Normal order create/update failed:", orderError);
             }
 
-            return NextResponse.redirect(
-                new URL(`/subscription/success?id=${subscriptionId}`, req.url),
-                303
-            );
-        }
+            const successUrl = new URL("/subscription/success", req.url);
+            successUrl.searchParams.set("id", subscriptionId);
+            successUrl.searchParams.set("tracking_id", trackingId);
+            successUrl.searchParams.set("value", String(amount));
 
-        console.error("[Subscription] Payment failed:", {
-            order_status: responseParams.order_status,
-            status_message: responseParams.status_message,
-            failure_message: responseParams.failure_message,
-        });
+            return NextResponse.redirect(successUrl, 303);
+        }
 
         return NextResponse.redirect(
             new URL(
