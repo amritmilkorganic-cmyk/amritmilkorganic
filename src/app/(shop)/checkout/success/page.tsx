@@ -13,6 +13,8 @@ function SuccessContent() {
 
     const orderId = searchParams.get("order_id");
     const trackingId = searchParams.get("tracking_id");
+    const valueParam = searchParams.get("value");
+    const purchaseValue = valueParam ? Number(valueParam) : 0;
 
     useEffect(() => {
         console.log("SuccessContent: mounted, clearing cart");
@@ -34,12 +36,28 @@ function SuccessContent() {
         }
 
         if (typeof window !== "undefined" && (window as any).gtag) {
-            (window as any).gtag("event", "conversion", {
-                send_to: "AW-17921700565/XnTpCLG5r_AbENXl3eFC",
-                transaction_id: trackingId || orderId || "",
-            });
+            const transactionId = trackingId || orderId || "";
+            const purchaseEventKey = `ga4-purchase-sent-${transactionId}`;
+
+            if (transactionId && !localStorage.getItem(purchaseEventKey)) {
+                (window as any).gtag("event", "purchase", {
+                    transaction_id: transactionId,
+                    value: purchaseValue,
+                    currency: "INR",
+                });
+
+                (window as any).gtag("event", "conversion", {
+                    send_to: "AW-17921700565/XnTpCLG5r_AbENXl3eFC",
+                    transaction_id: transactionId,
+                    value: purchaseValue,
+                    currency: "INR",
+                });
+
+                localStorage.setItem(purchaseEventKey, "true");
+                console.log("GA4 purchase event sent", transactionId, purchaseValue);
+            }
         }
-    }, [clearCart, trackingId, orderId]);
+    }, [clearCart, trackingId, orderId, purchaseValue]);
 
     return (
         <main className="bg-creme dark:bg-midnight min-h-screen flex items-center justify-center transition-colors duration-500">
@@ -70,6 +88,7 @@ function SuccessContent() {
                                     Order Details
                                 </span>
                             </div>
+
                             <div className="space-y-2">
                                 <div className="flex justify-between">
                                     <span className="text-espresso-muted dark:text-ivory/60">
