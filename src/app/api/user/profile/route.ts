@@ -13,22 +13,34 @@ function safeNumber(value: any): number {
     return Number.isFinite(n) ? n : 0;
 }
 
+function isGoodName(name: any): boolean {
+    const n = String(name || "").trim().toLowerCase();
+    return !!n && n.length > 2 && !["mr", "mr.", "mrs", "mrs.", "ms", "ms."].includes(n);
+}
+
+function pickBestName(orders: any[], subscriptions: any[]) {
+    const subName = subscriptions.find((s) => isGoodName(s?.customer?.name))?.customer?.name;
+    if (subName) return subName;
+
+    const orderName = orders.find((o) => isGoodName(o?.customerName))?.customerName;
+    if (orderName) return orderName;
+
+    return "Guest Member";
+}
+
 export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url);
         const phone = searchParams.get("phone");
 
         if (!phone) {
-            return NextResponse.json(
-                { error: "Phone number is required" },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
         }
 
         const cleanPhone = cleanPhoneNumber(phone);
 
         const orders = await writeClient.fetch(
-            `*[_type == "order" && phone match $phoneMatch] | order(createdAt desc) {
+            `*[_type == "order" && phone match $phoneMatch] | order(_createdAt desc) {
                 _id,
                 orderNumber,
                 customerName,
@@ -41,20 +53,22 @@ export async function GET(req: NextRequest) {
                 paymentStatus,
                 total,
                 items,
-                createdAt
+                createdAt,
+                _createdAt
             }`,
             { phoneMatch: `*${cleanPhone}*` }
         );
 
         const subscriptions = await writeClient.fetch(
-            `*[_type == "subscription" && customer.phone match $phoneMatch] | order(createdAt desc) {
+            `*[_type == "subscription" && customer.phone match $phoneMatch] | order(_createdAt desc) {
                 _id,
                 subscriptionId,
                 status,
                 product,
                 plan,
                 customer,
-                createdAt
+                createdAt,
+                _createdAt
             }`,
             { phoneMatch: `*${cleanPhone}*` }
         );
@@ -74,14 +88,14 @@ export async function GET(req: NextRequest) {
         let tier = "Bronze Start";
         if (totalSpent > 15000) tier = "Platinum Elite";
         else if (totalSpent > 5000) tier = "Gold Member";
-        else if (totalSpent > 0) tier = "Bronze Start";
 
-        const source = latestOrder || latestSubscription?.customer || {};
+        const source = latestSubscription?.customer || latestOrder || {};
+        const bestName = pickBestName(orders, subscriptions);
 
         return NextResponse.json({
             exists: orders.length > 0 || subscriptions.length > 0,
             profile: {
-                name: source.customerName || source.name || "Guest Member",
+                name: bestName,
                 email: source.email || "",
                 phone: source.phone || phone,
                 address: source.address || "",
@@ -95,7 +109,7 @@ export async function GET(req: NextRequest) {
             orders: orders.map((order: any) => ({
                 id: order._id,
                 orderNumber: order.orderNumber,
-                date: order.createdAt,
+                date: order.createdAt || order._createdAt,
                 status: order.orderStatus || order.paymentStatus || "processing",
                 total: safeNumber(order.total),
                 items: order.items || [],
@@ -106,14 +120,11 @@ export async function GET(req: NextRequest) {
                 status: sub.status,
                 product: sub.product,
                 plan: sub.plan,
-                createdAt: sub.createdAt,
+                createdAt: sub.createdAt || sub._createdAt,
             })),
         });
     } catch (error) {
         console.error("Profile fetch error:", error);
-        return NextResponse.json(
-            { error: "Failed to fetch profile" },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: "Failed to fetch profile" }, { status: 500 });
     }
 }
