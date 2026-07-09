@@ -32,6 +32,18 @@ interface Order {
   items?: any;
 }
 
+interface Subscription {
+  id: string;
+  subscriptionId?: string;
+  status?: string;
+  product?: any;
+  planType?: string;
+  plan?: any;
+  paymentMethod?: string;
+  deliveryInstructions?: string;
+  createdAt?: string;
+}
+
 interface UserProfile {
   name: string;
   email: string;
@@ -57,6 +69,7 @@ export default function AccountPage() {
 
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [userOrders, setUserOrders] = useState<Order[]>([]);
+  const [userSubscriptions, setUserSubscriptions] = useState<Subscription[]>([]);
   const [isEditingAddress, setIsEditingAddress] = useState(false);
 const [savingAddress, setSavingAddress] = useState(false);
 const [addressMessage, setAddressMessage] = useState("");
@@ -112,6 +125,7 @@ const [addressForm, setAddressForm] = useState({
       if (profileRes.ok) {
         setUserProfile(profileData.profile);
         setUserOrders(profileData.orders || []);
+        setUserSubscriptions(profileData.subscriptions || []);
         setIsAuthenticated(true);
         localStorage.setItem("amrit_user_phone", phone);
       } else {
@@ -196,6 +210,7 @@ const [addressForm, setAddressForm] = useState({
     localStorage.removeItem("amrit_user_phone");
     setUserProfile(null);
     setUserOrders([]);
+    setUserSubscriptions([]);
     setPasswordInput("");
     setLoginError("");
     setActiveTab("dashboard");
@@ -669,23 +684,148 @@ const [addressForm, setAddressForm] = useState({
                       Subscription
                     </h2>
                     <p className="text-theme-secondary mb-8">
-                      Milk subscription management will be available soon.
+                      Your milk subscription records are shown below.
                     </p>
 
-                    <div className="rounded-[2rem] bg-[#1a1a1a] text-ivory p-8">
+                    <div className="rounded-[2rem] bg-[#1a1a1a] text-ivory p-8 mb-8">
                       <Clock className="w-7 h-7 text-gold mb-5" />
                       <div className="text-xs font-black uppercase tracking-[0.25em] text-ivory/50 mb-2">
                         Current Status
                       </div>
                       <h3 className="text-2xl font-bold text-gold">
                         {userProfile?.activeSubscriptions
-                          ? `${userProfile.activeSubscriptions} Active Plan`
+                          ? `${userProfile.activeSubscriptions} Active ${
+                              userProfile.activeSubscriptions === 1 ? "Plan" : "Plans"
+                            }`
                           : "No Active Subscription"}
                       </h3>
                       <p className="text-ivory/70 mt-2">
-                        Pause, resume, quantity and address changes will be enabled in the next phase.
+                        Pause, resume, quantity and delivery changes will be enabled in a later phase.
                       </p>
                     </div>
+
+                    {userSubscriptions.length > 0 ? (
+                      <div className="space-y-4">
+                        {userSubscriptions.map((subscription) => {
+                          const productName =
+                            subscription.product?.title ||
+                            subscription.product?.name ||
+                            subscription.product?.productName ||
+                            (typeof subscription.product === "string"
+                              ? subscription.product
+                              : "Milk Subscription");
+
+                          const frequency =
+                            subscription.plan?.frequency ||
+                            subscription.planType ||
+                            subscription.plan?.planType ||
+                            "";
+
+                          const formatLabel = (value: string) =>
+                            value
+                              .replace(/_/g, " ")
+                              .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+                          const startDate =
+                            subscription.plan?.startDate || subscription.createdAt;
+
+                          const nextDelivery = subscription.plan?.nextDelivery;
+
+                          return (
+                            <div
+                              key={subscription.id}
+                              className="rounded-[2rem] bg-theme-secondary/40 border border-theme-light p-7"
+                            >
+                              <div className="flex flex-col md:flex-row md:items-start justify-between gap-5">
+                                <div className="flex-1">
+                                  <div className="text-xs font-black uppercase tracking-[0.2em] text-theme-muted mb-2">
+                                    {subscription.subscriptionId
+                                      ? `Subscription #${subscription.subscriptionId}`
+                                      : "Subscription"}
+                                  </div>
+
+                                  <h3 className="text-2xl font-bold text-theme-primary">
+                                    {productName}
+                                  </h3>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-5">
+                                    {subscription.product?.variant && (
+                                      <SubscriptionDetail
+                                        label="Variant"
+                                        value={String(subscription.product.variant)}
+                                      />
+                                    )}
+
+                                    {subscription.product?.quantity != null && (
+                                      <SubscriptionDetail
+                                        label="Quantity"
+                                        value={String(subscription.product.quantity)}
+                                      />
+                                    )}
+
+                                    {subscription.product?.price != null && (
+                                      <SubscriptionDetail
+                                        label="Price"
+                                        value={`₹${Number(
+                                          subscription.product.price
+                                        ).toLocaleString("en-IN")}`}
+                                      />
+                                    )}
+
+                                    {frequency && (
+                                      <SubscriptionDetail
+                                        label="Frequency"
+                                        value={formatLabel(String(frequency))}
+                                      />
+                                    )}
+
+                                    {startDate && (
+                                      <SubscriptionDetail
+                                        label="Start Date"
+                                        value={new Date(startDate).toLocaleDateString("en-IN")}
+                                      />
+                                    )}
+
+                                    {nextDelivery && (
+                                      <SubscriptionDetail
+                                        label="Next Delivery"
+                                        value={new Date(nextDelivery).toLocaleDateString("en-IN")}
+                                      />
+                                    )}
+
+                                    {subscription.paymentMethod && (
+                                      <SubscriptionDetail
+                                        label="Payment"
+                                        value={formatLabel(subscription.paymentMethod)}
+                                      />
+                                    )}
+                                  </div>
+
+                                  {subscription.deliveryInstructions && (
+                                    <div className="mt-5 rounded-2xl bg-theme-primary/60 border border-theme-light p-4">
+                                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-theme-muted mb-1">
+                                        Delivery Instructions
+                                      </div>
+                                      <p className="text-theme-secondary text-sm">
+                                        {subscription.deliveryInstructions}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <span className="inline-flex self-start rounded-full bg-theme-primary border border-theme-light px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-theme-accent">
+                                  {subscription.status || "Status unavailable"}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-[2rem] bg-theme-secondary/40 border border-theme-light p-8 text-center text-theme-muted italic">
+                        No subscription records found.
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -716,6 +856,23 @@ const [addressForm, setAddressForm] = useState({
         </div>
       </Section>
     </main>
+  );
+}
+
+function SubscriptionDetail({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-theme-primary/50 border border-theme-light px-4 py-3">
+      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-theme-muted mb-1">
+        {label}
+      </div>
+      <div className="text-sm font-bold text-theme-primary">{value}</div>
+    </div>
   );
 }
 

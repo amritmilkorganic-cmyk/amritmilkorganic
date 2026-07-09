@@ -132,11 +132,14 @@ export async function GET(req: NextRequest) {
       })),
       subscriptions: subscriptions.map((sub: any) => ({
         id: sub._id,
-        subscriptionId: sub.subscriptionId,
-        status: sub.status,
-        product: sub.product,
-        plan: sub.plan,
-        createdAt: sub.createdAt || sub._createdAt,
+  subscriptionId: sub.subscriptionId,
+  status: sub.status,
+  product: sub.product,
+  planType: sub.planType,
+  plan: sub.plan,
+  paymentMethod: sub.paymentMethod,
+  deliveryInstructions: sub.deliveryInstructions,
+  createdAt: sub.createdAt || sub._createdAt,
       })),
     });
   } catch (error) {
