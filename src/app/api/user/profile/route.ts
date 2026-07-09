@@ -38,21 +38,21 @@ export async function GET(req: NextRequest) {
     }
 
     const cleanPhone = cleanPhoneNumber(phone);
-
-    const account = await writeClient.fetch(
-      `*[_type == "customerAccount" && phone match $phoneMatch][0]{
-        _id,
-        name,
-        email,
-        phone,
-        address,
-        city,
-        state,
-        pincode,
-        isActive
-      }`,
-      { phoneMatch: `*${cleanPhone}*` }
-    );
+const account = await writeClient.fetch(
+  `*[_type == "customerAccount" && phone match $phoneMatch]
+    | order(updatedAt desc, _updatedAt desc)[0]{
+      _id,
+      name,
+      email,
+      phone,
+      address,
+      city,
+      state,
+      pincode,
+      isActive
+    }`,
+  { phoneMatch: `*${cleanPhone}*` }
+);
 
     const orders = await writeClient.fetch(
       `*[_type == "order" && phone match $phoneMatch] | order(_createdAt desc) {

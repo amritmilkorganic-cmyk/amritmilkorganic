@@ -81,6 +81,15 @@ const [addressForm, setAddressForm] = useState({
   state: "",
   pincode: "",
 });
+
+const [isEditingProfile, setIsEditingProfile] = useState(false);
+const [savingProfile, setSavingProfile] = useState(false);
+const [profileMessage, setProfileMessage] = useState("");
+const [profileError, setProfileError] = useState("");
+const [profileForm, setProfileForm] = useState({
+  name: "",
+  email: "",
+});
   
   const formattedAddress = [
   userProfile?.address,
@@ -202,6 +211,74 @@ const [addressForm, setAddressForm] = useState({
       setAddressError("Unable to save address. Please try again.");
     } finally {
       setSavingAddress(false);
+    }
+  };
+
+  const startProfileEdit = () => {
+    setProfileMessage("");
+    setProfileError("");
+    setProfileForm({
+      name: userProfile?.name || "",
+      email: userProfile?.email || "",
+    });
+    setIsEditingProfile(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!userProfile?.phone) {
+      setProfileError("Customer phone number is missing.");
+      return;
+    }
+
+    if (!profileForm.name.trim()) {
+      setProfileError("Please enter your full name.");
+      return;
+    }
+
+    if (profileForm.email && !profileForm.email.includes("@")) {
+      setProfileError("Please enter a valid email address.");
+      return;
+    }
+
+    setSavingProfile(true);
+    setProfileMessage("");
+    setProfileError("");
+
+    try {
+      const response = await fetch("/api/user/update-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: userProfile.phone,
+          name: profileForm.name,
+          email: profileForm.email,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setProfileError(data.error || "Unable to save profile.");
+        return;
+      }
+
+      setUserProfile((current) =>
+        current
+          ? {
+              ...current,
+              name: data.profile?.name ?? profileForm.name,
+              email: data.profile?.email ?? profileForm.email,
+            }
+          : current
+      );
+
+      setProfileMessage(data.message || "Profile updated successfully.");
+      setIsEditingProfile(false);
+    } catch (error) {
+      console.error(error);
+      setProfileError("Unable to save profile. Please try again.");
+    } finally {
+      setSavingProfile(false);
     }
   };
 
@@ -831,23 +908,119 @@ const [addressForm, setAddressForm] = useState({
 
                 {activeTab === "settings" && (
                   <div className="glass-theme p-12 rounded-[3rem] border-theme-light shadow-2xl">
-                    <h2 className="text-4xl font-serif font-bold text-theme-primary mb-2">
-                      Account Settings
-                    </h2>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+                      <h2 className="text-4xl font-serif font-bold text-theme-primary">
+                        Account Settings
+                      </h2>
+
+                      {!isEditingProfile && (
+                        <Button
+                          onClick={startProfileEdit}
+                          className="bg-gradient-to-tr from-terracotta to-[#8B4513] dark:from-gold dark:to-warmGold text-white dark:text-espresso rounded-2xl px-6 py-5 font-bold"
+                        >
+                          Edit Profile
+                        </Button>
+                      )}
+                    </div>
+
                     <p className="text-theme-secondary font-medium italic mb-10">
-                      Your saved customer profile details.
+                      Update your name and email. Phone number is locked as your account identifier.
                     </p>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <ProfileField icon={User} label="Full Name" value={userProfile?.name} />
-                      <ProfileField icon={Mail} label="Email" value={userProfile?.email} />
-                      <ProfileField icon={Phone} label="Phone" value={userProfile?.phone} />
-                      <ProfileField
-                      icon={Home}
-  label="Address"
-  value={formattedAddress || "No address saved yet."}
-/>
-                    </div>
+                    {profileMessage && (
+                      <div className="mb-6 rounded-2xl border border-green-500/20 bg-green-500/10 px-5 py-4 text-sm font-semibold text-green-600 dark:text-green-300">
+                        {profileMessage}
+                      </div>
+                    )}
+
+                    {profileError && (
+                      <div className="mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm font-semibold text-red-600 dark:text-red-300">
+                        {profileError}
+                      </div>
+                    )}
+
+                    {isEditingProfile ? (
+                      <div className="space-y-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          <EditableProfileField
+                            icon={User}
+                            label="Full Name"
+                            value={profileForm.name}
+                            onChange={(value) =>
+                              setProfileForm((current) => ({
+                                ...current,
+                                name: value,
+                              }))
+                            }
+                          />
+
+                          <EditableProfileField
+                            icon={Mail}
+                            label="Email"
+                            type="email"
+                            value={profileForm.email}
+                            onChange={(value) =>
+                              setProfileForm((current) => ({
+                                ...current,
+                                email: value,
+                              }))
+                            }
+                          />
+
+                          <ProfileField
+                            icon={Phone}
+                            label="Phone"
+                            value={userProfile?.phone}
+                            helper="Phone number cannot be changed here."
+                          />
+
+                          <ProfileField
+                            icon={Home}
+                            label="Address"
+                            value={formattedAddress || "No address saved yet."}
+                            helper="Address can be changed from the Addresses tab."
+                          />
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <Button
+                            onClick={handleSaveProfile}
+                            disabled={savingProfile}
+                            className="bg-gradient-to-tr from-terracotta to-[#8B4513] dark:from-gold dark:to-warmGold text-white dark:text-espresso rounded-2xl px-8 py-6 font-bold disabled:opacity-50"
+                          >
+                            {savingProfile ? "Saving..." : "Save Changes"}
+                          </Button>
+
+                          <Button
+                            onClick={() => {
+                              setIsEditingProfile(false);
+                              setProfileError("");
+                            }}
+                            disabled={savingProfile}
+                            className="bg-theme-secondary text-theme-primary border border-theme-light rounded-2xl px-8 py-6 font-bold"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <ProfileField icon={User} label="Full Name" value={userProfile?.name} />
+                        <ProfileField icon={Mail} label="Email" value={userProfile?.email} />
+                        <ProfileField
+                          icon={Phone}
+                          label="Phone"
+                          value={userProfile?.phone}
+                          helper="Phone number is your secure login identity."
+                        />
+                        <ProfileField
+                          icon={Home}
+                          label="Address"
+                          value={formattedAddress || "No address saved yet."}
+                          helper="Manage delivery address from the Addresses tab."
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </motion.div>
@@ -876,14 +1049,47 @@ function SubscriptionDetail({
   );
 }
 
+function EditableProfileField({
+  icon: Icon,
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  icon: any;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+}) {
+  return (
+    <div className="space-y-3">
+      <label className="text-[10px] font-black uppercase tracking-[0.3em] text-theme-muted pl-1">
+        {label}
+      </label>
+      <div className="relative">
+        <Icon className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-theme-accent" />
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full bg-theme-secondary/50 text-theme-primary border border-theme-light rounded-2xl p-5 pl-14 focus:border-terracotta dark:focus:border-gold outline-none font-bold shadow-soft"
+        />
+      </div>
+    </div>
+  );
+}
+
 function ProfileField({
   icon: Icon,
   label,
   value,
+  helper,
 }: {
   icon: any;
   label: string;
   value?: string;
+  helper?: string;
 }) {
   return (
     <div className="space-y-3">
@@ -899,6 +1105,7 @@ function ProfileField({
           className="w-full bg-theme-secondary/50 text-theme-primary border border-theme-light rounded-2xl p-5 pl-14 outline-none font-bold shadow-soft"
         />
       </div>
+      {helper && <p className="text-xs text-theme-muted italic pl-1">{helper}</p>}
     </div>
   );
 }
