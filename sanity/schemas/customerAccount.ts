@@ -33,6 +33,20 @@ export default defineType({
         }),
 
         defineField({
+            name: "resetTokenHash",
+            title: "Reset Token Hash",
+            type: "string",
+            hidden: true,
+        }),
+
+        defineField({
+            name: "resetTokenExpiresAt",
+            title: "Reset Token Expires At",
+            type: "datetime",
+            hidden: true,
+        }),
+
+        defineField({
             name: "isActive",
             title: "Account Active",
             type: "boolean",

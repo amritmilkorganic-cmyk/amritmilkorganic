@@ -214,9 +214,55 @@ export default function AccountPage() {
                             )}
                         </Button>
 
-                        <p className="text-center text-xs text-theme-muted leading-relaxed">
-                            Forgot password? Please contact the Amrit team to reset it securely.
-                        </p>
+                        <div className="text-center text-xs text-theme-muted leading-relaxed">
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    setLoginError("");
+
+                                    if (phoneInput.replace(/\D/g, "").length < 10) {
+                                        setLoginError(
+                                            "Please enter your registered phone number first."
+                                        );
+                                        return;
+                                    }
+
+                                    setLoading(true);
+
+                                    try {
+                                        const response = await fetch(
+                                            "/api/user/forgot-password",
+                                            {
+                                                method: "POST",
+                                                headers: {
+                                                    "Content-Type": "application/json",
+                                                },
+                                                body: JSON.stringify({
+                                                    identifier: phoneInput,
+                                                }),
+                                            }
+                                        );
+
+                                        const data = await response.json();
+
+                                        setLoginError(
+                                            data.message ||
+                                                "If an active account exists, a password reset email has been sent."
+                                        );
+                                    } catch (error) {
+                                        console.error(error);
+                                        setLoginError(
+                                            "Unable to send reset email. Please try again."
+                                        );
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                                className="font-semibold text-terracotta dark:text-gold hover:underline"
+                            >
+                                Forgot password?
+                            </button>
+                        </div>
                     </div>
                 </motion.div>
             </main>
@@ -319,7 +365,7 @@ export default function AccountPage() {
                                     className="flex items-center gap-4 text-espresso-muted hover:text-red-500 transition-colors py-2 font-medium w-full"
                                 >
                                     <LogOut className="w-5 h-5" />
-                                    <span>Disconnect</span>
+                                    <span>Log Out</span>
                                 </button>
                             </div>
                         </nav>

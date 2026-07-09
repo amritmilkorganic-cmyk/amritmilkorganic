@@ -356,3 +356,108 @@ console.log(
 results.map((r, i) => `${i}: ${r.status}`)
 );
 }
+export async function sendPasswordResetEmail(
+    email: string,
+    customerName: string,
+    resetUrl: string
+): Promise<boolean> {
+    const smtpUser =
+        process.env.SMTP_USER || DEFAULT_ORDER_EMAIL;
+
+    if (!smtpUser || !process.env.SMTP_PASSWORD || !email) {
+        console.warn(
+            "Password reset email skipped: SMTP config or email missing"
+        );
+        return false;
+    }
+
+    try {
+        await transporter.sendMail({
+            from: `"Amrit Milk Organic" <${smtpUser}>`,
+            to: email,
+            subject: "Reset Your Amrit Milk Organic Password",
+
+            html: `
+                <div style="
+                    font-family: Arial, sans-serif;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 30px;
+                    border: 1px solid #eee;
+                ">
+
+                    <h2 style="color: #a64b1a;">
+                        Reset Your Password
+                    </h2>
+
+                    <p>Hi ${customerName || "Amrit Member"},</p>
+
+                    <p>
+                        We received a request to reset the password
+                        for your Amrit Milk Organic customer account.
+                    </p>
+
+                    <p style="margin: 30px 0;">
+                        <a
+                            href="${resetUrl}"
+                            style="
+                                background: #a64b1a;
+                                color: white;
+                                padding: 14px 24px;
+                                text-decoration: none;
+                                border-radius: 6px;
+                                font-weight: bold;
+                                display: inline-block;
+                            "
+                        >
+                            RESET PASSWORD
+                        </a>
+                    </p>
+
+                    <p>
+                        This link will expire shortly for your security.
+                    </p>
+
+                    <p>
+                        If you did not request a password reset,
+                        you can safely ignore this email.
+                    </p>
+
+                    <hr style="
+                        border: 0;
+                        border-top: 1px solid #eee;
+                        margin: 30px 0;
+                    ">
+
+                    <p style="
+                        color: #777;
+                        font-size: 13px;
+                    ">
+                        Amrit Milk Organic<br>
+                        Not a brand. A movement.
+                    </p>
+
+                </div>
+            `,
+        });
+
+        console.log(
+            `Password reset email sent to ${email}`
+        );
+
+        return true;
+
+    } catch (error: any) {
+
+        console.error(
+            "Password reset email error:",
+            {
+                message: error.message,
+                code: error.code,
+                response: error.response,
+            }
+        );
+
+        return false;
+    }
+}
