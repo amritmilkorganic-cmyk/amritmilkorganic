@@ -10,6 +10,7 @@ import {
     Clock,
     CreditCard,
     Home,
+    Lock,
     LogOut,
     Mail,
     MapPin,
@@ -49,6 +50,8 @@ export default function AccountPage() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [loading, setLoading] = useState(false);
     const [phoneInput, setPhoneInput] = useState("");
+    const [passwordInput, setPasswordInput] = useState("");
+    const [loginError, setLoginError] = useState("");
 
     // User Data State
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -60,42 +63,45 @@ export default function AccountPage() {
         else if (hour < 17) setGreeting("Good Afternoon");
         else setGreeting("Good Evening");
 
-        // Check for local auth
+        // Pre-fill phone only. Do not auto-login without password.
         const storedPhone = localStorage.getItem("amrit_user_phone");
         if (storedPhone) {
-            handleLogin(storedPhone);
+            setPhoneInput(storedPhone);
         }
     }, []);
 
-    const handleLogin = async (phone: string) => {
+    const handleLogin = async (phone: string, password: string) => {
         setLoading(true);
-        try {
-            const res = await fetch(`/api/user/profile?phone=${phone}`);
-            const data = await res.json();
+        setLoginError("");
 
-            if (res.ok) {
-                setUserProfile(data.profile);
-                setUserOrders(data.orders || []);
+        try {
+            const loginRes = await fetch("/api/user/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ phone, password }),
+            });
+
+            const loginData = await loginRes.json();
+
+            if (!loginRes.ok) {
+                setLoginError(loginData.error || "Login failed");
+                return;
+            }
+
+            const profileRes = await fetch(`/api/user/profile?phone=${phone}`);
+            const profileData = await profileRes.json();
+
+            if (profileRes.ok) {
+                setUserProfile(profileData.profile);
+                setUserOrders(profileData.orders || []);
                 setIsAuthenticated(true);
                 localStorage.setItem("amrit_user_phone", phone);
             } else {
-                // Fallback for demo if API fails or no user found yet
-                setUserProfile({
-                    name: "Guest Member",
-                    email: "",
-                    phone: phone,
-                    address: "",
-                    city: "",
-                    state: "",
-                    tier: "Bronze Start",
-                    totalSpent: 0,
-                    activeSubscriptions: 0,
-                    impactPoints: 0,
-                });
-                setIsAuthenticated(true);
+                setLoginError("Could not load customer profile.");
             }
         } catch (err) {
             console.error(err);
+            setLoginError("Something went wrong. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -106,6 +112,8 @@ export default function AccountPage() {
         localStorage.removeItem("amrit_user_phone");
         setUserProfile(null);
         setUserOrders([]);
+        setPasswordInput("");
+        setLoginError("");
     };
 
     const containerVariants = {
@@ -137,7 +145,7 @@ export default function AccountPage() {
                             Welcome Back
                         </h1>
                         <p className="text-theme-secondary italic">
-                            Enter your phone number to access your premium dashboard.
+                            Enter your phone number and password to access your premium dashboard.
                         </p>
                     </div>
 
@@ -158,9 +166,45 @@ export default function AccountPage() {
                             </div>
                         </div>
 
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-theme-muted pl-4">
+                                Password
+                            </label>
+                            <div className="relative group">
+                                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-theme-accent group-focus-within:scale-110 transition-transform" />
+                                <input
+                                    type="password"
+                                    placeholder="Enter your password"
+                                    value={passwordInput}
+                                    onChange={(e) => setPasswordInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (
+                                            e.key === "Enter" &&
+                                            phoneInput.length >= 10 &&
+                                            passwordInput.length >= 4 &&
+                                            !loading
+                                        ) {
+                                            handleLogin(phoneInput, passwordInput);
+                                        }
+                                    }}
+                                    className="w-full bg-theme-secondary/50 text-theme-primary border border-theme-light rounded-2xl p-5 pl-14 focus:border-terracotta dark:focus:border-gold outline-none transition-all font-bold shadow-soft text-lg"
+                                />
+                            </div>
+                        </div>
+
+                        {loginError && (
+                            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm font-semibold text-red-600 dark:text-red-300">
+                                {loginError}
+                            </div>
+                        )}
+
                         <Button
-                            onClick={() => handleLogin(phoneInput)}
-                            disabled={loading || phoneInput.length < 10}
+                            onClick={() => handleLogin(phoneInput, passwordInput)}
+                            disabled={
+                                loading ||
+                                phoneInput.replace(/\D/g, "").length < 10 ||
+                                passwordInput.length < 4
+                            }
                             className="w-full bg-gradient-to-tr from-terracotta to-[#8B4513] dark:from-gold dark:to-warmGold text-white dark:text-espresso rounded-[1.5rem] py-7 text-lg font-black shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50 disabled:hover:scale-100"
                         >
                             {loading ? (
@@ -169,6 +213,10 @@ export default function AccountPage() {
                                 "Secure Login"
                             )}
                         </Button>
+
+                        <p className="text-center text-xs text-theme-muted leading-relaxed">
+                            Forgot password? Please contact the Amrit team to reset it securely.
+                        </p>
                     </div>
                 </motion.div>
             </main>
