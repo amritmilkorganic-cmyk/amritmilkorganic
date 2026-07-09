@@ -39,6 +39,7 @@ interface UserProfile {
   address: string;
   city?: string;
   state?: string;
+  pincode?: string;
   tier: string;
   totalSpent: number;
   activeSubscriptions: number;
@@ -56,6 +57,17 @@ export default function AccountPage() {
 
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [userOrders, setUserOrders] = useState<Order[]>([]);
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
+const [savingAddress, setSavingAddress] = useState(false);
+const [addressMessage, setAddressMessage] = useState("");
+const [addressError, setAddressError] = useState("");
+
+const [addressForm, setAddressForm] = useState({
+  address: "",
+  city: "",
+  state: "",
+  pincode: "",
+});
   
   const formattedAddress = [
   userProfile?.address,
@@ -110,6 +122,72 @@ export default function AccountPage() {
       setLoginError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const startAddressEdit = () => {
+    setAddressMessage("");
+    setAddressError("");
+    setAddressForm({
+      address: userProfile?.address || "",
+      city: userProfile?.city || "",
+      state: userProfile?.state || "",
+      pincode: userProfile?.pincode || "",
+    });
+    setIsEditingAddress(true);
+  };
+
+  const handleSaveAddress = async () => {
+    if (!userProfile?.phone) {
+      setAddressError("Customer phone number is missing.");
+      return;
+    }
+
+    if (!addressForm.address.trim()) {
+      setAddressError("Please enter your delivery address.");
+      return;
+    }
+
+    setSavingAddress(true);
+    setAddressMessage("");
+    setAddressError("");
+
+    try {
+      const response = await fetch("/api/user/update-address", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: userProfile.phone,
+          ...addressForm,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setAddressError(data.error || "Unable to save address.");
+        return;
+      }
+
+      setUserProfile((current) =>
+        current
+          ? {
+              ...current,
+              address: data.address?.address ?? addressForm.address,
+              city: data.address?.city ?? addressForm.city,
+              state: data.address?.state ?? addressForm.state,
+              pincode: data.address?.pincode ?? addressForm.pincode,
+            }
+          : current
+      );
+
+      setAddressMessage(data.message || "Address updated successfully.");
+      setIsEditingAddress(false);
+    } catch (error) {
+      console.error(error);
+      setAddressError("Unable to save address. Please try again.");
+    } finally {
+      setSavingAddress(false);
     }
   };
 
@@ -402,32 +480,158 @@ export default function AccountPage() {
 
                 {activeTab === "addresses" && (
                   <div className="glass-theme p-10 rounded-[3rem] border-theme-light shadow-2xl">
-                    <h2 className="text-4xl font-serif font-bold text-theme-primary mb-4">
-                      Saved Addresses
-                    </h2>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                      <h2 className="text-4xl font-serif font-bold text-theme-primary">
+                        Saved Addresses
+                      </h2>
+
+                      {!isEditingAddress && (
+                        <Button
+                          onClick={startAddressEdit}
+                          className="bg-gradient-to-tr from-terracotta to-[#8B4513] dark:from-gold dark:to-warmGold text-white dark:text-espresso rounded-2xl px-6 py-5 font-bold"
+                        >
+                          {formattedAddress ? "Edit Address" : "Add Address"}
+                        </Button>
+                      )}
+                    </div>
+
                     <p className="text-theme-secondary mb-8">
-                      Your primary delivery address is shown below. Address editing will be enabled soon.
+                      Add or update your primary delivery address.
                     </p>
 
-                    <div className="rounded-[2rem] bg-theme-secondary/40 border border-theme-light p-8">
-                      <div className="flex items-start gap-5">
-                        <MapPin className="w-7 h-7 text-theme-accent mt-1" />
-                        <div>
-                          <div className="text-xs font-black uppercase tracking-[0.25em] text-theme-muted mb-2">
-                            Primary Address
+                    {addressMessage && (
+                      <div className="mb-6 rounded-2xl border border-green-500/20 bg-green-500/10 px-5 py-4 text-sm font-semibold text-green-600 dark:text-green-300">
+                        {addressMessage}
+                      </div>
+                    )}
+
+                    {addressError && (
+                      <div className="mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm font-semibold text-red-600 dark:text-red-300">
+                        {addressError}
+                      </div>
+                    )}
+
+                    {isEditingAddress ? (
+                      <div className="rounded-[2rem] bg-theme-secondary/40 border border-theme-light p-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="md:col-span-2 space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-[0.25em] text-theme-muted">
+                              Delivery Address
+                            </label>
+                            <textarea
+                              rows={4}
+                              value={addressForm.address}
+                              onChange={(e) =>
+                                setAddressForm((current) => ({
+                                  ...current,
+                                  address: e.target.value,
+                                }))
+                              }
+                              placeholder="House / Flat, Street, Area, Landmark"
+                              className="w-full bg-theme-primary text-theme-primary border border-theme-light rounded-2xl p-5 focus:border-terracotta dark:focus:border-gold outline-none transition-all font-semibold shadow-soft resize-none"
+                            />
                           </div>
-                          <h3 className="text-2xl font-bold text-theme-primary">
-                            {userProfile?.name || "Customer"}
-                          </h3>
-                          <p className="text-theme-secondary mt-2 leading-relaxed">
-                            {formattedAddress || "No address saved yet."}
-                          </p>
-                          <p className="text-theme-muted mt-2">
-                            Phone: {userProfile?.phone || "--"}
-                          </p>
+
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-[0.25em] text-theme-muted">
+                              City
+                            </label>
+                            <input
+                              type="text"
+                              value={addressForm.city}
+                              onChange={(e) =>
+                                setAddressForm((current) => ({
+                                  ...current,
+                                  city: e.target.value,
+                                }))
+                              }
+                              placeholder="City"
+                              className="w-full bg-theme-primary text-theme-primary border border-theme-light rounded-2xl p-5 focus:border-terracotta dark:focus:border-gold outline-none transition-all font-semibold shadow-soft"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-[0.25em] text-theme-muted">
+                              State
+                            </label>
+                            <input
+                              type="text"
+                              value={addressForm.state}
+                              onChange={(e) =>
+                                setAddressForm((current) => ({
+                                  ...current,
+                                  state: e.target.value,
+                                }))
+                              }
+                              placeholder="State"
+                              className="w-full bg-theme-primary text-theme-primary border border-theme-light rounded-2xl p-5 focus:border-terracotta dark:focus:border-gold outline-none transition-all font-semibold shadow-soft"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-[0.25em] text-theme-muted">
+                              Pincode
+                            </label>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={6}
+                              value={addressForm.pincode}
+                              onChange={(e) =>
+                                setAddressForm((current) => ({
+                                  ...current,
+                                  pincode: e.target.value.replace(/\D/g, "").slice(0, 6),
+                                }))
+                              }
+                              placeholder="6-digit pincode"
+                              className="w-full bg-theme-primary text-theme-primary border border-theme-light rounded-2xl p-5 focus:border-terracotta dark:focus:border-gold outline-none transition-all font-semibold shadow-soft"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-3 mt-8">
+                          <Button
+                            onClick={handleSaveAddress}
+                            disabled={savingAddress}
+                            className="bg-gradient-to-tr from-terracotta to-[#8B4513] dark:from-gold dark:to-warmGold text-white dark:text-espresso rounded-2xl px-8 py-6 font-bold disabled:opacity-50"
+                          >
+                            {savingAddress ? "Saving..." : "Save Address"}
+                          </Button>
+
+                          <Button
+                            onClick={() => {
+                              setIsEditingAddress(false);
+                              setAddressError("");
+                            }}
+                            disabled={savingAddress}
+                            className="bg-theme-secondary text-theme-primary border border-theme-light rounded-2xl px-8 py-6 font-bold"
+                          >
+                            Cancel
+                          </Button>
                         </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="rounded-[2rem] bg-theme-secondary/40 border border-theme-light p-8">
+                        <div className="flex items-start gap-5">
+                          <MapPin className="w-7 h-7 text-theme-accent mt-1" />
+                          <div>
+                            <div className="text-xs font-black uppercase tracking-[0.25em] text-theme-muted mb-2">
+                              Primary Address
+                            </div>
+                            <h3 className="text-2xl font-bold text-theme-primary">
+                              {userProfile?.name || "Customer"}
+                            </h3>
+                            <p className="text-theme-secondary mt-2 leading-relaxed">
+                              {formattedAddress || "No address saved yet."}
+                              {userProfile?.pincode ? ` - ${userProfile.pincode}` : ""}
+                            </p>
+                            <p className="text-theme-muted mt-2">
+                              Phone: {userProfile?.phone || "--"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

@@ -26,6 +26,31 @@ export default defineType({
         }),
 
         defineField({
+            name: "address",
+            title: "Address",
+            type: "text",
+            rows: 3,
+        }),
+
+        defineField({
+            name: "city",
+            title: "City",
+            type: "string",
+        }),
+
+        defineField({
+            name: "state",
+            title: "State",
+            type: "string",
+        }),
+
+        defineField({
+            name: "pincode",
+            title: "Pincode",
+            type: "string",
+        }),
+
+        defineField({
             name: "passwordHash",
             title: "Password Hash",
             type: "string",
