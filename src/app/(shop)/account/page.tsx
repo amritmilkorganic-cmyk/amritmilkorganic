@@ -28,6 +28,9 @@ interface Order {
   orderNumber: string;
   date: string;
   status: string;
+  paymentStatus?: string;
+  paymentMethod?: string;
+  trackingId?: string;
   total: number;
   items?: any;
 }
@@ -70,6 +73,7 @@ export default function AccountPage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [userOrders, setUserOrders] = useState<Order[]>([]);
   const [userSubscriptions, setUserSubscriptions] = useState<Subscription[]>([]);
+  const [visiblePayments, setVisiblePayments] = useState(10);
   const [isEditingAddress, setIsEditingAddress] = useState(false);
 const [savingAddress, setSavingAddress] = useState(false);
 const [addressMessage, setAddressMessage] = useState("");
@@ -733,25 +737,107 @@ const [profileForm, setProfileForm] = useState({
                       Payments
                     </h2>
                     <p className="text-theme-secondary mb-8">
-                      Online payments are securely processed through CCAvenue.
+                      View payment details linked to your orders. Online payments are securely processed through CCAvenue.
                     </p>
 
-                    <div className="rounded-[2rem] bg-theme-secondary/40 border border-theme-light p-8">
+                    <div className="rounded-[2rem] bg-theme-secondary/40 border border-theme-light p-8 mb-8">
                       <div className="flex items-start gap-5">
                         <CreditCard className="w-7 h-7 text-theme-accent mt-1" />
                         <div>
                           <div className="text-xs font-black uppercase tracking-[0.25em] text-theme-muted mb-2">
-                            Payment Method
+                            Secure Payments
                           </div>
                           <h3 className="text-2xl font-bold text-theme-primary">
                             CCAvenue Online Payment
                           </h3>
                           <p className="text-theme-secondary mt-2">
-                            Saved cards or UPI mandates are not stored on Amrit Milk Organic.
+                            Saved cards, banking credentials and UPI PINs are not stored on Amrit Milk Organic.
                           </p>
                         </div>
                       </div>
                     </div>
+
+                    <h3 className="text-2xl font-serif font-bold text-theme-primary mb-5">
+                      Transaction History
+                    </h3>
+
+                    {userOrders.length > 0 ? (
+                      <div className="space-y-4">
+                        {userOrders.slice(0, visiblePayments).map((order) => {
+                          const paymentMethodLabel =
+                            order.paymentMethod === "ccavenue"
+                              ? "CCAvenue Online"
+                              : order.paymentMethod === "cod"
+                              ? "Cash on Delivery"
+                              : "Not recorded";
+
+                          const paymentStatusLabel =
+                            order.paymentStatus === "success"
+                              ? "Paid"
+                              : order.paymentStatus === "failed"
+                              ? "Failed"
+                              : order.paymentStatus === "pending"
+                              ? "Pending"
+                              : "Not recorded";
+
+                          return (
+                            <div
+                              key={order.id}
+                              className="rounded-[2rem] bg-theme-secondary/30 border border-theme-light p-7"
+                            >
+                              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                                <div>
+                                  <div className="text-xs font-black uppercase tracking-[0.2em] text-theme-muted mb-2">
+                                    Order #{order.orderNumber}
+                                  </div>
+                                  <div className="text-2xl font-bold text-theme-primary">
+                                    ₹{order.total.toLocaleString("en-IN")}
+                                  </div>
+                                  <div className="text-sm text-theme-muted mt-1">
+                                    {order.date
+                                      ? new Date(order.date).toLocaleDateString("en-IN")
+                                      : "Date unavailable"}
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:min-w-[420px]">
+                                  <PaymentDetail label="Payment Method" value={paymentMethodLabel} />
+                                  <PaymentDetail label="Payment Status" value={paymentStatusLabel} />
+                                </div>
+                              </div>
+
+                              {order.trackingId && (
+                                <div className="mt-5 rounded-2xl bg-theme-primary/60 border border-theme-light px-5 py-4">
+                                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-theme-muted mb-1">
+                                    CCAvenue Tracking ID
+                                  </div>
+                                  <div className="text-sm font-bold text-theme-primary break-all">
+                                    {order.trackingId}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {userOrders.length > visiblePayments && (
+                          <div className="pt-4 text-center">
+                            <Button
+                              onClick={() =>
+                                setVisiblePayments((current) => current + 10)
+                              }
+                              className="bg-theme-secondary text-theme-primary border border-theme-light rounded-2xl px-8 py-6 font-bold"
+                            >
+                              Show More
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="rounded-[2rem] bg-theme-secondary/40 border border-theme-light p-8 text-center text-theme-muted italic">
+                        No payment-linked orders found.
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1029,6 +1115,23 @@ const [profileForm, setProfileForm] = useState({
         </div>
       </Section>
     </main>
+  );
+}
+
+function PaymentDetail({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-theme-primary/50 border border-theme-light px-4 py-3">
+      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-theme-muted mb-1">
+        {label}
+      </div>
+      <div className="text-sm font-bold text-theme-primary">{value}</div>
+    </div>
   );
 }
 
