@@ -74,7 +74,6 @@ export default function AccountPage() {
   const [userOrders, setUserOrders] = useState<Order[]>([]);
   const [userSubscriptions, setUserSubscriptions] = useState<Subscription[]>([]);
   const [visiblePayments, setVisiblePayments] = useState(10);
-  const [visibleOrders, setVisibleOrders] = useState(10);
   const [isEditingAddress, setIsEditingAddress] = useState(false);
 const [savingAddress, setSavingAddress] = useState(false);
 const [addressMessage, setAddressMessage] = useState("");
@@ -548,7 +547,7 @@ const [profileForm, setProfileForm] = useState({
 
                     {userOrders.length > 0 ? (
                       <div className="space-y-4">
-                        {userOrders.slice(0, visibleOrders).map((order) => (
+                        {userOrders.map((order) => (
                           <div
                             key={order.id}
                             className="flex flex-col md:flex-row md:items-center justify-between p-8 rounded-[2.5rem] bg-theme-secondary/30 border border-theme-light"
@@ -566,19 +565,6 @@ const [profileForm, setProfileForm] = useState({
                             </div>
                           </div>
                         ))}
-
-                        {userOrders.length > visibleOrders && (
-                          <div className="pt-4 text-center">
-                            <Button
-                              onClick={() =>
-                                setVisibleOrders((current) => current + 10)
-                              }
-                              className="bg-theme-secondary text-theme-primary border border-theme-light rounded-2xl px-8 py-6 font-bold"
-                            >
-                              Show More
-                            </Button>
-                          </div>
-                        )}
                       </div>
                     ) : (
                       <div className="text-center py-12 text-theme-muted italic">
