@@ -37,6 +37,7 @@
         "@sanity/image-url": "^2.0.2",
         "@sanity/vision": "^3.0.0",
         "@types/nodemailer": "^7.0.4",
+        "@vercel/analytics": "^2.0.1",
         "ai": "^3.4.15",
         "atropos": "^2.0.2",
         "axios": "^1.13.2",

@@ -2,6 +2,7 @@ import { BotpressWidget } from "@/components/chat/BotpressWidget";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { CartProvider } from "@/lib/CartContext";
 import { LocalBusinessSchema, OrganizationSchema, WebsiteSchema } from "@/components/seo/JsonLd";
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import Script from "next/script";
@@ -124,6 +125,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         <WebsiteSchema />
                         {children}
                         <BotpressWidget />
+                        <Analytics />
                     </CartProvider>
                 </ThemeProvider>
             </body>
