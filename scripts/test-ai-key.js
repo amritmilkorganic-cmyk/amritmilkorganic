@@ -1,9 +1,13 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 async function testKey() {
-    // API Key from source
-    const apiKey = "AIzaSyD56yPjGyQ6T14bYE540oNk7qmA8UZ_2yk";
-    console.log("Testing API Key:", apiKey.slice(0, 10) + "...");
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim();
+
+    if (!apiKey) {
+        console.error("GOOGLE_GENERATIVE_AI_API_KEY is not configured");
+        process.exitCode = 1;
+        return;
+    }
 
     try {
         if (!GoogleGenerativeAI) {

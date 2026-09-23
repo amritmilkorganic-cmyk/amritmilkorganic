@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const workingKey = "7E11E36439A6169B00EB122F6155B84A";
+        const workingKey = process.env.CCAVENUE_WORKING_KEY?.trim();
 
         if (!workingKey) {
             console.error("CCAvenue working key not configured");
@@ -37,12 +37,12 @@ export async function POST(req: NextRequest) {
         const decryptedData = decrypt(encryptedResponse, workingKey);
         const responseParams = parseResponse(decryptedData);
 
-        console.log("CCAvenue Response:", JSON.stringify(responseParams, null, 2));
+        const { order_id, tracking_id, order_status } = responseParams;
 
-        const { order_id, tracking_id, order_status, status_message } = responseParams;
-
-        console.log("CCAvenue order_status:", order_status);
-        console.log("CCAvenue status_message:", status_message);
+        console.log("CCAvenue payment response:", {
+            orderId: order_id,
+            paymentStatus: order_status,
+        });
 
         if (order_status === "Success") {
             let paymentTotal: number | null = null;
@@ -115,7 +115,10 @@ export async function POST(req: NextRequest) {
 
             const failureUrl = new URL("/checkout", req.url);
             failureUrl.searchParams.set("status", "failed");
-            failureUrl.searchParams.set("message", status_message || "Payment failed");
+            failureUrl.searchParams.set(
+                "message",
+                responseParams.status_message || "Payment failed"
+            );
             failureUrl.searchParams.set("order_id", order_id || "");
 
             return NextResponse.redirect(failureUrl, {
