@@ -10,8 +10,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const WORKING_KEY = "7E11E36439A6169B00EB122F6155B84A".trim();
-
 function safeNumber(value: any): number {
     const n = parseFloat(String(value || "0").replace(/[^\d.]/g, ""));
     return Number.isFinite(n) ? n : 0;
@@ -29,7 +27,17 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const decrypted = decrypt(encResponse, WORKING_KEY);
+        const workingKey = process.env.CCAVENUE_WORKING_KEY?.trim();
+
+        if (!workingKey) {
+            console.error("[Subscription] CCAvenue working key is not configured");
+            return NextResponse.redirect(
+                new URL("/subscription/failed?reason=config_error", req.url),
+                303
+            );
+        }
+
+        const decrypted = decrypt(encResponse, workingKey);
         const responseParams = parseResponse(decrypted);
 
         const orderStatus = String(responseParams.order_status || "")
@@ -41,12 +49,9 @@ export async function POST(req: NextRequest) {
         const subscriptionId = responseParams.order_id || `SUB-${Date.now()}`;
         const trackingId = responseParams.tracking_id || "";
 
-        console.log("[Subscription] CCAvenue Response:", {
+        console.log("[Subscription] CCAvenue payment response:", {
             orderId: subscriptionId,
-            rawStatus: responseParams.order_status,
-            normalizedStatus: orderStatus,
-            amount: responseParams.amount,
-            trackingId,
+            paymentStatus: orderStatus,
         });
 
         if (isSuccess) {
@@ -60,8 +65,7 @@ export async function POST(req: NextRequest) {
 
             const productId = responseParams.merchant_param2 || "unknown";
             const planType = responseParams.merchant_param3 || "one_time";
-            const productName =
-                responseParams.merchant_param4 || "Subscription Product";
+            const productName = responseParams.merchant_param4 || "Subscription Product";
 
             const subscription = {
                 _type: "subscription",

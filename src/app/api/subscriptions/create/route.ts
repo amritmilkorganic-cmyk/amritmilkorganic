@@ -36,9 +36,17 @@ export async function POST(req: NextRequest) {
         }
 
         // Use same CCAvenue credentials
-        const merchantId = "1475948".trim();
-        const accessCode = "AVPB87NA49AZ79BPZA".trim();
-        const workingKey = "7E11E36439A6169B00EB122F6155B84A".trim();
+        const merchantId = process.env.CCAVENUE_MERCHANT_ID?.trim();
+        const accessCode = process.env.CCAVENUE_ACCESS_CODE?.trim();
+        const workingKey = process.env.CCAVENUE_WORKING_KEY?.trim();
+
+        if (!merchantId || !accessCode || !workingKey) {
+            console.error("[Subscription] CCAvenue credentials are not configured");
+            return NextResponse.json(
+                { error: "Payment gateway is not configured" },
+                { status: 500 }
+            );
+        }
 
         const redirectUrl = "https://www.amritmilkorganic.com/api/subscriptions/handle";
         const cancelUrl = "https://www.amritmilkorganic.com/api/subscriptions/handle";

@@ -3,7 +3,7 @@ import json
 import os
 import time
 
-API_KEY = "quickstart-QUdJIGlzIGNvbWluZy4uLi4K"
+API_KEY = os.environ.get("DEEPAI_API_KEY", "").strip()
 URL = "https://api.deepai.org/api/text2img"
 OUT_DIR = r"c:\IDE-PROJECTS\ANTIGRAVITY\PATHAK\projects\amrit-wp-nextjs\public\assets\img\products"
 
@@ -47,6 +47,9 @@ def generate(filename, prompt):
         print(f"Error: {e}")
 
 if __name__ == "__main__":
+    if not API_KEY:
+        raise SystemExit("DEEPAI_API_KEY is not configured")
+
     if not os.path.exists(OUT_DIR):
         os.makedirs(OUT_DIR)
         

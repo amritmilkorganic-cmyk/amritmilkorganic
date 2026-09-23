@@ -73,20 +73,13 @@ function findProductPricing(query: string): string {
 
 export async function POST(req: Request) {
     try {
-        const apiKey =
-            process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
-            process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ||
-            "AIzaSyD56yPjGyQ6T14bYE540oNk7qmA8UZ_2yk";
+        const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
         console.log("[Amrit AI] Initializing Chat API");
-        console.log("[Amrit AI] API Key length:", apiKey ? apiKey.length : 0);
 
         if (!apiKey) {
-            console.error("[Amrit AI] CRITICAL: Missing Google AI API Key");
-            // Graceful fallback instead of strict error
-            return new Response(
-                "Namaste! 🙏 Hum abhi system update kar rahe hain. Kripya humari team se WhatsApp par baat karein: 918130693767."
-            );
+            console.error("[Amrit AI] Chat service is unavailable");
+            return new Response("Chat service is temporarily unavailable.", { status: 503 });
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
