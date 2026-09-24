@@ -47,7 +47,7 @@ const smtpUser = process.env.SMTP_USER || DEFAULT_ORDER_EMAIL;
 const merchantEmail = process.env.MERCHANT_EMAIL || DEFAULT_ORDER_EMAIL;
 
 if (!smtpUser || !process.env.SMTP_PASSWORD) {
-console.warn("Merchant email skipped: SMTP_USER or SMTP_PASSWORD not configured");
+console.warn(JSON.stringify({ operation: "notification.merchant_email", category: "configuration_unavailable" }));
 return false;
 }
 
@@ -102,15 +102,10 @@ html: `
 `,
 });
 
-console.log(`SMTP Email notification sent for order ${order.orderNumber}`);
+console.log(JSON.stringify({ operation: "notification.merchant_email", category: "completed" }));
 return true;
 } catch (error: any) {
-console.error("SMTP Email notification error:", {
-message: error.message,
-code: error.code,
-command: error.command,
-response: error.response,
-});
+console.error(JSON.stringify({ operation: "notification.merchant_email", category: "delivery_failed" }));
 return false;
 }
 }
@@ -121,7 +116,7 @@ order: OrderNotificationData
 const smtpUser = process.env.SMTP_USER || DEFAULT_ORDER_EMAIL;
 
 if (!smtpUser || !process.env.SMTP_PASSWORD || !order.email) {
-console.warn("Customer email skipped: No SMTP config or customer email");
+console.warn(JSON.stringify({ operation: "notification.customer_email", category: "unavailable" }));
 return false;
 }
 
@@ -167,15 +162,10 @@ If you have any questions, reply to this email or reach out on WhatsApp (+91 813
 `,
 });
 
-console.log(`Customer SMTP confirmation email sent to ${order.email}`);
+console.log(JSON.stringify({ operation: "notification.customer_email", category: "completed" }));
 return true;
 } catch (error: any) {
-console.error("Customer SMTP email error details:", {
-message: error.message,
-code: error.code,
-command: error.command,
-response: error.response,
-});
+console.error(JSON.stringify({ operation: "notification.customer_email", category: "delivery_failed" }));
 return false;
 }
 }
@@ -203,7 +193,7 @@ const url = `https://api.callmebot.com/whatsapp.php?phone=${whatsappNumber}&text
 const response = await fetch(url);
 return response.ok;
 } catch (error) {
-console.error("WhatsApp error:", error);
+console.error(JSON.stringify({ operation: "notification.whatsapp", category: "delivery_failed" }));
 return false;
 }
 }
@@ -243,10 +233,10 @@ html: `
 `,
 });
 
-console.log(`Resend: Merchant notification sent for ${order.orderNumber}`);
+console.log(JSON.stringify({ operation: "notification.resend", category: "completed" }));
 return true;
 } catch (error) {
-console.error("Resend error:", error);
+console.error(JSON.stringify({ operation: "notification.resend", category: "delivery_failed" }));
 return false;
 }
 }
@@ -267,10 +257,10 @@ data: order,
 }),
 });
 
-console.log(`[Webhook] Trigger status: ${response.ok ? "SUCCESS" : "FAILED"}`);
+console.log(JSON.stringify({ operation: "notification.webhook", category: response.ok ? "completed" : "provider_failed" }));
 return response.ok;
 } catch (error) {
-console.error("[Webhook] Automation Trigger error:", error);
+console.error(JSON.stringify({ operation: "notification.webhook", category: "delivery_failed" }));
 return false;
 }
 }
@@ -308,7 +298,7 @@ parse_mode: "Markdown",
 console.log("Telegram notification sent");
 return res.ok;
 } catch (error) {
-console.error("Telegram error:", error);
+console.error(JSON.stringify({ operation: "notification.telegram", category: "delivery_failed" }));
 return false;
 }
 }
@@ -331,13 +321,13 @@ Tags: "shopping_cart,milk_glass",
 console.log("ntfy.sh notification sent");
 return res.ok;
 } catch (error) {
-console.error("ntfy error:", error);
+console.error(JSON.stringify({ operation: "notification.ntfy", category: "delivery_failed" }));
 return false;
 }
 }
 
 export async function sendOrderNotifications(order: OrderNotificationData): Promise<void> {
-console.log(`Starting notifications for order: ${order.orderNumber}`);
+console.log(JSON.stringify({ operation: "notifications.dispatch", category: "started" }));
 
 const attempts = [
 sendOrderEmailNotification(order),
@@ -351,10 +341,7 @@ sendNtfyNotification(order),
 
 const results = await Promise.allSettled(attempts);
 
-console.log(
-`All notification attempts for ${order.orderNumber} completed:`,
-results.map((r, i) => `${i}: ${r.status}`)
-);
+console.log(JSON.stringify({ operation: "notifications.dispatch", category: "completed" }));
 }
 export async function sendPasswordResetEmail(
     email: string,
@@ -441,22 +428,13 @@ export async function sendPasswordResetEmail(
             `,
         });
 
-        console.log(
-            `Password reset email sent to ${email}`
-        );
+        console.log(JSON.stringify({ operation: "notification.password_reset", category: "completed" }));
 
         return true;
 
     } catch (error: any) {
 
-        console.error(
-            "Password reset email error:",
-            {
-                message: error.message,
-                code: error.code,
-                response: error.response,
-            }
-        );
+        console.error(JSON.stringify({ operation: "notification.password_reset", category: "delivery_failed" }));
 
         return false;
     }

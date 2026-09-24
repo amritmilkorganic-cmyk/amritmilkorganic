@@ -19,6 +19,14 @@ export default defineType({
             validation: (Rule) => Rule.required(),
         }),
         defineField({
+            name: "customerAccount",
+            title: "Customer Account",
+            type: "reference",
+            to: [{ type: "customerAccount" }],
+            readOnly: true,
+            description: "Immutable owner reference when this order belongs to a registered customer.",
+        }),
+        defineField({
             name: "email",
             title: "Email",
             type: "string",

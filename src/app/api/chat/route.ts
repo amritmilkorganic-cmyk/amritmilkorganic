@@ -154,7 +154,7 @@ ${pricingContext}
             console.log("[Amrit AI] Success! Response generated.");
             return new Response(text);
         } catch (apiError: any) {
-            console.error("[Amrit AI] Gemini API Error:", apiError);
+            console.error(JSON.stringify({ operation: "chat.generate", category: "provider_failed" }));
 
             // FALLBACK TO LOCAL KNOWLEDGE BASE SEARCH
             console.log("[Amrit AI] Attempting local knowledge search...");
@@ -194,7 +194,7 @@ ${pricingContext}
             }
 
             if (bestMatch && maxScore >= 2) {
-                console.log("[Amrit AI] Found local match:", bestMatch.id);
+                console.log(JSON.stringify({ operation: "chat.local_search", category: "match_found" }));
                 let responseText = bestMatch.answer_hi;
                 if (pricingInfo) {
                     responseText +=
@@ -212,7 +212,7 @@ ${pricingContext}
             );
         }
     } catch (error: any) {
-        console.error("[Amrit AI] Unexpected Error:", error);
+        console.error(JSON.stringify({ operation: "chat.generate", category: "unexpected_failure" }));
         // Graceful fallback on crash
         return new Response(
             "Namaste! 🙏 Kuch takneeki samasya aa rahi hai. \n\nKripya humari team se WhatsApp par seedhe baat karein: 918130693767"

@@ -23,7 +23,7 @@ export async function getBlogPosts(params: {
         if (!response.ok) return null;
         return await response.json();
     } catch (error) {
-        console.error('Error fetching blog posts:', error);
+        console.error(JSON.stringify({ operation: "wordpress.blog.list", category: "provider_failed" }));
         return null;
     }
 }
@@ -39,7 +39,7 @@ export async function getBlogPost(slug: string) {
         if (!response.ok) return null;
         return await response.json();
     } catch (error) {
-        console.error(`Error fetching blog post ${slug}:`, error);
+        console.error(JSON.stringify({ operation: "wordpress.blog.read", category: "provider_failed" }));
         return null;
     }
 }
@@ -55,7 +55,7 @@ export async function getBlogCategories() {
         if (!response.ok) return [];
         return await response.json();
     } catch (error) {
-        console.error('Error fetching blog categories:', error);
+        console.error(JSON.stringify({ operation: "wordpress.blog.categories", category: "provider_failed" }));
         return [];
     }
 }
@@ -71,7 +71,7 @@ export async function getBlogTags() {
         if (!response.ok) return [];
         return await response.json();
     } catch (error) {
-        console.error('Error fetching blog tags:', error);
+        console.error(JSON.stringify({ operation: "wordpress.blog.tags", category: "provider_failed" }));
         return [];
     }
 }

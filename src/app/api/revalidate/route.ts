@@ -19,17 +19,9 @@ export async function POST(request: NextRequest) {
         // Verify secret
         const secret = body.secret || request.headers.get("X-Revalidate-Secret");
 
-        if (secret !== process.env.REVALIDATION_SECRET) {
-            console.error("[Revalidate] Invalid secret provided");
+        if (!process.env.REVALIDATION_SECRET || secret !== process.env.REVALIDATION_SECRET) {
             return NextResponse.json({ error: "Invalid revalidation secret" }, { status: 401 });
         }
-
-        // Log revalidation request
-        console.log("[Revalidate] Request received:", {
-            paths: body.paths,
-            revalidateAll: body.revalidateAll,
-            post: body.post,
-        });
 
         // Revalidate all pages
         if (body.revalidateAll) {
@@ -50,9 +42,8 @@ export async function POST(request: NextRequest) {
                 try {
                     revalidatePath(path);
                     revalidatedPaths.push(path);
-                    console.log(`[Revalidate] Path revalidated: ${path}`);
                 } catch (err) {
-                    console.error(`[Revalidate] Error revalidating ${path}:`, err);
+                    console.error(JSON.stringify({ operation: "content.revalidate.path", category: "operation_failed" }));
                 }
             }
 
@@ -66,7 +57,6 @@ export async function POST(request: NextRequest) {
         // Revalidate by tag
         if (body.tag) {
             revalidateTag(body.tag);
-            console.log(`[Revalidate] Tag revalidated: ${body.tag}`);
             return NextResponse.json({
                 revalidated: true,
                 tag: body.tag,
@@ -79,7 +69,7 @@ export async function POST(request: NextRequest) {
             { status: 400 }
         );
     } catch (error) {
-        console.error("[Revalidate] Error:", error);
+        console.error(JSON.stringify({ operation: "content.revalidate", category: "operation_failed" }));
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

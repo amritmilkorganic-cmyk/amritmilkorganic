@@ -95,7 +95,7 @@ const [profileForm, setProfileForm] = useState({
   name: "",
   email: "",
 });
-  
+
   const formattedAddress = [
   userProfile?.address,
   userProfile?.city,
@@ -133,7 +133,7 @@ const [profileForm, setProfileForm] = useState({
         return;
       }
 
-      const profileRes = await fetch(`/api/user/profile?phone=${phone}`);
+      const profileRes = await fetch("/api/user/profile");
       const profileData = await profileRes.json();
 
       if (profileRes.ok) {
@@ -287,7 +287,8 @@ const [profileForm, setProfileForm] = useState({
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await fetch("/api/user/logout", { method: "POST" });
     setIsAuthenticated(false);
     localStorage.removeItem("amrit_user_phone");
     setUserProfile(null);

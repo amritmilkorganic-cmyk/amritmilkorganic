@@ -27,7 +27,7 @@ export async function POST(req: Request) {
             );
         }
     } catch (error) {
-        console.error("[Handover API] Error:", error);
+        console.error(JSON.stringify({ operation: "handover.create", category: "operation_failed" }));
         return Response.json({ error: "Internal server error" }, { status: 500 });
     }
 }

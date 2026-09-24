@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminMutation } from "@/lib/security/http";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
+    const auth = requireAdminMutation(req);
+    if (auth instanceof NextResponse) return auth;
     const resendApiKey = process.env.RESEND_API_KEY;
-    const merchantEmail = process.env.MERCHANT_EMAIL || "hello@amritmilk.com";
 
     if (!resendApiKey) {
-        return NextResponse.json({ error: "Missing RESEND_API_KEY" }, { status: 500 });
+        return NextResponse.json({ error: "Email test is unavailable" }, { status: 503 });
     }
 
     try {
@@ -25,18 +27,12 @@ export async function GET(req: NextRequest) {
             }),
         });
 
-        const data = await response.json();
-
         if (!response.ok) {
-            return NextResponse.json({ 
-                success: false, 
-                status: response.status, 
-                error: data 
-            }, { status: response.status });
+            return NextResponse.json({ success: false, error: "Email test failed" }, { status: 502 });
         }
 
-        return NextResponse.json({ success: true, data });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ success: true });
+    } catch {
+        return NextResponse.json({ success: false, error: "Email test failed" }, { status: 500 });
     }
 }

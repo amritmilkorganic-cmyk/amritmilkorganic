@@ -24,7 +24,7 @@ async function wpFetch(query: string, variables = {}) {
     const json = await res.json();
 
     if (json.errors) {
-        console.error("WPGraphQL Errors:", json.errors);
+        console.error(JSON.stringify({ operation: "wordpress.graphql", category: "provider_failed" }));
         throw new Error("Failed to fetch API");
     }
 

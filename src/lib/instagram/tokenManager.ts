@@ -188,7 +188,7 @@ export async function refreshLongLivedToken(
   // Cache the new token
   cacheToken(data.access_token, data.expires_in);
 
-  console.log(`Instagram token refreshed successfully. New expiry: ${data.expires_in}s`);
+  console.log(JSON.stringify({ operation: "instagram.token.refresh", category: "completed" }));
 
   return {
     accessToken: data.access_token,
@@ -216,7 +216,7 @@ export async function getValidAccessToken(): Promise<string> {
       const { accessToken } = await refreshLongLivedToken(cfg.accessToken);
       return accessToken;
     } catch (error) {
-      console.warn('Failed to refresh token, using existing token:', error);
+      console.warn(JSON.stringify({ operation: "instagram.token.refresh", category: "fallback_used" }));
       return cfg.accessToken;
     }
   }
@@ -237,7 +237,7 @@ export async function validateAccessToken(accessToken: string): Promise<boolean>
     const response = await fetch(url, { method: 'GET' });
     return response.ok;
   } catch (error) {
-    console.error('Token validation error:', error);
+    console.error(JSON.stringify({ operation: "instagram.token.validate", category: "provider_failed" }));
     return false;
   }
 }

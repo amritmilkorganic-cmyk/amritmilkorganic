@@ -7,6 +7,7 @@ import { decrypt, parseResponse } from "@/lib/ccavenue";
 import { writeClient } from "@/lib/sanity";
 import { createOrder, updateOrderPaymentStatus } from "@/lib/sanity-orders";
 import { NextRequest, NextResponse } from "next/server";
+import { findUniqueCustomerAccount } from "@/lib/security/customer-identity";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
         const workingKey = process.env.CCAVENUE_WORKING_KEY?.trim();
 
         if (!workingKey) {
-            console.error("[Subscription] CCAvenue working key is not configured");
+            console.error(JSON.stringify({ operation: "subscription.callback", category: "configuration_unavailable" }));
             return NextResponse.redirect(
                 new URL("/subscription/failed?reason=config_error", req.url),
                 303
@@ -49,11 +50,6 @@ export async function POST(req: NextRequest) {
         const subscriptionId = responseParams.order_id || `SUB-${Date.now()}`;
         const trackingId = responseParams.tracking_id || "";
 
-        console.log("[Subscription] CCAvenue payment response:", {
-            orderId: subscriptionId,
-            paymentStatus: orderStatus,
-        });
-
         if (isSuccess) {
             const customerName = responseParams.billing_name || "Customer Name";
             const email = responseParams.billing_email || "";
@@ -62,6 +58,10 @@ export async function POST(req: NextRequest) {
             const city = responseParams.billing_city || "";
             const state = responseParams.billing_state || "";
             const pincode = responseParams.billing_zip || "";
+            const customerLookup = await findUniqueCustomerAccount(writeClient, phone);
+            const customerAccountId = customerLookup.ambiguous
+                ? undefined
+                : customerLookup.account?._id;
 
             const productId = responseParams.merchant_param2 || "unknown";
             const planType = responseParams.merchant_param3 || "one_time";
@@ -69,6 +69,9 @@ export async function POST(req: NextRequest) {
 
             const subscription = {
                 _type: "subscription",
+                ...(customerAccountId && {
+                    customerAccount: { _type: "reference", _ref: customerAccountId },
+                }),
                 subscriptionId,
                 customer: {
                     name: customerName,
@@ -100,13 +103,13 @@ export async function POST(req: NextRequest) {
 
             try {
                 await writeClient.create(subscription);
-                console.log(`[Subscription] Created ${subscriptionId}`);
-            } catch (sanityError) {
-                console.error("[Subscription] Sanity subscription create failed:", sanityError);
+            } catch {
+                console.error(JSON.stringify({ operation: "subscription.record.create", category: "data_update_failed" }));
             }
 
             try {
                 const { orderNumber } = await createOrder({
+                    customerAccountId,
                     customerName,
                     email,
                     phone,
@@ -131,11 +134,8 @@ export async function POST(req: NextRequest) {
 
                 await updateOrderPaymentStatus(orderNumber, "success", trackingId);
 
-                console.log(
-                    `[Subscription] Linked normal order created and marked paid: ${orderNumber} for ${subscriptionId}`
-                );
-            } catch (orderError) {
-                console.error("[Subscription] Normal order create/update failed:", orderError);
+            } catch {
+                console.error(JSON.stringify({ operation: "subscription.order.create", category: "data_update_failed" }));
             }
 
             const successUrl = new URL("/subscription/success", req.url);
@@ -148,18 +148,13 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.redirect(
             new URL(
-                `/subscription/failed?reason=${encodeURIComponent(
-                    responseParams.failure_message ||
-                        responseParams.status_message ||
-                        responseParams.order_status ||
-                        "payment_failed"
-                )}`,
+                "/subscription/failed?reason=payment_failed",
                 req.url
             ),
             303
         );
-    } catch (error: any) {
-        console.error("[Subscription] Handler error:", error);
+    } catch {
+        console.error(JSON.stringify({ operation: "subscription.callback", category: "processing_failed" }));
 
         return NextResponse.redirect(
             new URL("/subscription/failed?reason=server_error", req.url),

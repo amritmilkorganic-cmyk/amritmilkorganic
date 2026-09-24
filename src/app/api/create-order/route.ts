@@ -27,8 +27,13 @@ export async function POST(req: NextRequest) {
         const order = await razorpay.orders.create(options);
 
         return NextResponse.json(order);
-    } catch (error: any) {
-        console.error("Razorpay Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch {
+        console.error(
+            JSON.stringify({ operation: "razorpay.order.create", category: "provider_failed" })
+        );
+        return NextResponse.json(
+            { error: "Payment request could not be created" },
+            { status: 500 }
+        );
     }
 }

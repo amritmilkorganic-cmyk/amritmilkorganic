@@ -22,7 +22,7 @@ export async function fetchInstagramMedia(accessToken: string): Promise<Instagra
         const data = await response.json();
         return data.data || [];
     } catch (error) {
-        console.error("Failed to fetch Instagram media:", error);
+        console.error(JSON.stringify({ operation: "instagram.media.read", category: "provider_failed" }));
         throw error;
     }
 }
@@ -83,8 +83,8 @@ export async function syncInstagramToSanity() {
                     filename: `instagram-${media.id}.jpg`,
                 });
             }
-        } catch (e) {
-            console.warn(`Failed to upload image for ${media.id}`, e);
+        } catch {
+            console.warn(JSON.stringify({ operation: "instagram.image.upload", category: "provider_failed" }));
         }
 
         const doc = {

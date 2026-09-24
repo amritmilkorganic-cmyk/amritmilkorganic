@@ -177,7 +177,7 @@ export async function getWordPressProducts() {
 
         return products.map((p) => mapWooProductToProduct(p));
     } catch (error) {
-        console.error("Error fetching WooCommerce products:", error);
+        console.error(JSON.stringify({ operation: "wordpress.products.list", category: "provider_failed" }));
         return [];
     }
 }
@@ -209,7 +209,7 @@ export async function getWordPressProductBySlug(slug: string) {
                         }
                     );
                 } catch (e) {
-                    console.warn(`Failed to fetch variations for ${slug}`, e);
+                    console.warn(JSON.stringify({ operation: "wordpress.product.variations", category: "provider_failed" }));
                 }
             }
 
@@ -217,7 +217,7 @@ export async function getWordPressProductBySlug(slug: string) {
         }
         return null;
     } catch (error) {
-        console.error(`Error fetching WooCommerce product ${slug}:`, error);
+        console.error(JSON.stringify({ operation: "wordpress.product.read", category: "provider_failed" }));
         return null;
     }
 }

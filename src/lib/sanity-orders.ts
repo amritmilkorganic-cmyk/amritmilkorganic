@@ -21,6 +21,7 @@ interface OrderItem {
 }
 
 interface CreateOrderData {
+    customerAccountId?: string;
     customerName: string;
     email: string;
     phone: string;
@@ -58,6 +59,9 @@ export async function createOrder(
 
     const result = await writeClient.create({
         _type: "order",
+        ...(data.customerAccountId && {
+            customerAccount: { _type: "reference", _ref: data.customerAccountId },
+        }),
         orderNumber,
         customerName: data.customerName,
         email: data.email,
@@ -83,8 +87,6 @@ export async function createOrder(
         orderStatus: "pending",
     });
 
-    console.log(`Order created in Sanity: ${orderNumber}`);
-
     return {
         orderNumber,
         id: result._id,
@@ -104,7 +106,6 @@ export async function updateOrderPaymentStatus(
     const order = await writeClient.fetch(query, { orderNumber });
 
     if (!order) {
-        console.error(`Order not found: ${orderNumber}`);
         return null;
     }
 
@@ -117,7 +118,6 @@ export async function updateOrderPaymentStatus(
         })
         .commit();
 
-    console.log(`Order ${orderNumber} payment status updated to ${status}`);
     return updatedOrder;
 }
 
@@ -140,8 +140,6 @@ export async function createContactQuery(data: {
         message: data.message,
         status: "new",
     });
-
-    console.log(`Contact query created: ${result._id}`);
 
     return { id: result._id };
 }
@@ -174,8 +172,8 @@ export async function getOrders(limit = 50) {
             ...order,
             createdAt: order._createdAt,
         }));
-    } catch (error) {
-        console.error("Failed to fetch orders from Sanity:", error);
+    } catch {
+        console.error(JSON.stringify({ operation: "admin.orders.list", category: "data_access_failed" }));
         throw new Error("Failed to fetch orders");
     }
 }

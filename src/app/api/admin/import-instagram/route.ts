@@ -1,7 +1,11 @@
 import { client } from "@/lib/sanity";
 import { NextResponse } from "next/server";
+import { requireAdminMutation } from "@/lib/security/http";
+import { NextRequest } from "next/server";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+    const auth = requireAdminMutation(request);
+    if (auth instanceof NextResponse) return auth;
     try {
         const { url, imageUrl, caption } = await request.json();
 
@@ -16,10 +20,9 @@ export async function POST(request: Request) {
         });
 
         if (!process.env.SANITY_WRITE_TOKEN) {
-            console.error("Missing SANITY_WRITE_TOKEN env var");
             return NextResponse.json(
-                { success: false, error: "Server configuration error: Missing write token" },
-                { status: 500 }
+                { success: false, error: "Import is unavailable" },
+                { status: 503 }
             );
         }
 
@@ -44,8 +47,8 @@ export async function POST(request: Request) {
                     filename: `instagram-import-${Date.now()}.jpg`,
                 });
             }
-        } catch (e) {
-            console.warn("Failed to upload image:", e);
+        } catch {
+            console.warn(JSON.stringify({ operation: "admin.instagram.image.upload", category: "provider_failed" }));
         }
 
         // Create Document
@@ -75,8 +78,7 @@ export async function POST(request: Request) {
             message: "Post imported successfully",
             post: doc,
         });
-    } catch (error: any) {
-        console.error("Import Error:", error);
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch {
+        return NextResponse.json({ success: false, error: "Import failed" }, { status: 500 });
     }
 }

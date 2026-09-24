@@ -8,6 +8,9 @@ import { createOrder } from "@/lib/sanity-orders";
 import { PrismaClient } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { requireAdmin } from "@/lib/security/http";
+import { findUniqueCustomerAccount } from "@/lib/security/customer-identity";
+import { writeClient } from "@/lib/sanity";
 
 const prisma = new PrismaClient();
 
@@ -59,17 +62,19 @@ details: validationResult.error.flatten().fieldErrors,
 }
 
 if (!process.env.SANITY_WRITE_TOKEN) {
-console.error("Critical: SANITY_WRITE_TOKEN is missing.");
+console.error(JSON.stringify({ operation: "order.create", category: "configuration_unavailable" }));
 return NextResponse.json(
 {
 success: false,
-error: "Server configuration error: Database write token missing.",
+error: "Order service is unavailable.",
 },
 { status: 500 }
 );
 }
 
 const data = validationResult.data;
+
+const customerLookup = await findUniqueCustomerAccount(writeClient, data.phone);
 
 if (data.couponCode) {
 try {
@@ -79,12 +84,13 @@ data: {
 usageCount: { increment: 1 },
 },
 });
-} catch (e) {
-console.warn(`Failed to increment usage for coupon ${data.couponCode}`, e);
+} catch {
+console.warn(JSON.stringify({ operation: "order.coupon.increment", category: "data_update_failed" }));
 }
 }
 
 const { orderNumber, id } = await createOrder({
+customerAccountId: customerLookup.ambiguous ? undefined : customerLookup.account?._id,
 customerName: data.customerName,
 email: data.email || "",
 phone: data.phone,
@@ -105,12 +111,9 @@ total: data.total,
 paymentMethod: data.paymentMethod,
 });
 
-console.log(`Order created: ${orderNumber}`);
-console.log(`Payment method received: ${data.paymentMethod}`);
 
 // Send notifications for COD immediately
 if (data.paymentMethod === "cod") {
-console.log("COD notification block reached");
 
 try {
 await sendOrderNotifications({
@@ -131,12 +134,9 @@ state: data.state,
 pincode: data.pincode,
 });
 
-console.log(`COD notifications completed for order: ${orderNumber}`);
-} catch (err) {
-console.error("Notification error:", err);
+} catch {
+console.error(JSON.stringify({ operation: "order.notification", category: "delivery_failed" }));
 }
-} else {
-console.log(`Notification skipped here because payment method is: ${data.paymentMethod}`);
 }
 
 return NextResponse.json({
@@ -148,13 +148,13 @@ total: data.total,
 paymentMethod: data.paymentMethod,
 },
 });
-} catch (error: any) {
-console.error("Order creation error:", error);
+} catch {
+console.error(JSON.stringify({ operation: "order.create", category: "operation_failed" }));
 
 return NextResponse.json(
 {
 success: false,
-error: error.message || "Failed to create order",
+error: "Failed to create order",
 },
 { status: 500 }
 );
@@ -165,6 +165,8 @@ error: error.message || "Failed to create order",
 * GET - List orders (for Admin UI)
 */
 export async function GET(req: NextRequest) {
+const auth = requireAdmin(req);
+if (auth instanceof NextResponse) return auth;
 try {
 const { getOrders } = await import("@/lib/sanity-orders");
 const orders = await getOrders(50);
@@ -173,8 +175,8 @@ return NextResponse.json({
 success: true,
 orders,
 });
-} catch (error: any) {
-console.error("Orders GET Error:", error);
+} catch {
+console.error(JSON.stringify({ operation: "admin.orders.list", category: "data_access_failed" }));
 return NextResponse.json(
 { success: false, error: "Failed to fetch orders" },
 { status: 500 }

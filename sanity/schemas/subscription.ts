@@ -15,6 +15,14 @@ export default {
             validation: (Rule: any) => Rule.required(),
         },
         {
+            name: "customerAccount",
+            title: "Customer Account",
+            type: "reference",
+            to: [{ type: "customerAccount" }],
+            readOnly: true,
+            description: "Immutable owner reference when the subscriber has a registered account.",
+        },
+        {
             name: "customer",
             title: "Customer Details",
             type: "object",

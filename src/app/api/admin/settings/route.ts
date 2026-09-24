@@ -1,7 +1,10 @@
 import { client } from "@/lib/sanity";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/security/http";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+    const auth = requireAdmin(request);
+    if (auth instanceof NextResponse) return auth;
     try {
         const query = `*[_type == "siteSettings"][0]{
             instagramAccessToken,
@@ -20,8 +23,8 @@ export async function GET() {
         };
 
         return NextResponse.json({ success: true, status });
-    } catch (error) {
-        console.error("Failed to fetch settings:", error);
+    } catch {
+        console.error(JSON.stringify({ operation: "admin.settings.read", category: "data_access_failed" }));
         return NextResponse.json(
             { success: false, error: "Failed to fetch settings" },
             { status: 500 }

@@ -47,7 +47,7 @@ export class SovereignOperator {
                 status: "TASK_COMPLETE",
             };
         } catch (error: any) {
-            console.error("❌ Sovereign Task Failure:", error.message);
+            console.error(JSON.stringify({ operation: "sovereign.task", category: "operation_failed" }));
             throw error;
         } finally {
             await page.close();

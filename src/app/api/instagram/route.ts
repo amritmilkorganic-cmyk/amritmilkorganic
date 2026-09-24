@@ -1,6 +1,6 @@
 /**
  * Instagram API Route
- * 
+ *
  * GET endpoint to fetch Instagram media from Meta Graph API
  * Supports both authenticated and public modes
  * Includes rate limiting and caching headers
@@ -173,7 +173,7 @@ async function validateAccessToken(accessToken: string): Promise<boolean> {
 
 /**
  * GET endpoint handler
- * 
+ *
  * Query parameters:
  * - limit: Number of posts to fetch (default: 12, max: 25)
  * - mediaId: Optional specific media ID to fetch details
@@ -224,7 +224,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       try {
         accessToken = await exchangeForLongLivedToken(INSTAGRAM_ACCESS_TOKEN);
       } catch (error) {
-        console.warn('Token refresh failed, using existing token:', error);
+        console.warn(JSON.stringify({ operation: 'instagram.token.refresh', category: 'fallback_used' }));
       }
     }
 
@@ -245,10 +245,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }));
 
     return NextResponse.json(
-      { 
-        success: true, 
+      {
+        success: true,
         data: posts,
-        paging: response.paging || null 
+        paging: response.paging || null
       },
       {
         headers: {
@@ -259,23 +259,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   } catch (error) {
     if (error instanceof InstagramApiError) {
-      console.error(`Instagram API Error [${error.code}]: ${error.message}`);
+      console.error(JSON.stringify({ operation: 'instagram.feed', category: 'provider_failed' }));
       return NextResponse.json(
-        { 
-          success: false, 
-          error: error.message,
-          code: error.code 
+        {
+          success: false,
+          error: 'Instagram feed is unavailable',
+          code: 'PROVIDER_UNAVAILABLE'
         },
         { status: error.status }
       );
     }
 
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    console.error('Unexpected Instagram API error:', error);
+    console.error(JSON.stringify({ operation: 'instagram.feed', category: 'unexpected_failure' }));
 
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'An unexpected error occurred while fetching Instagram data',
         code: 'INTERNAL_ERROR'
       },

@@ -1,26 +1,21 @@
 import { products } from "@/lib/products";
 import fs from "fs";
 import mime from "mime";
-import { createClient } from "next-sanity";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdminMutation } from "@/lib/security/http";
+import { writeClient as client } from "@/lib/sanity";
 import path from "path";
 
 export const dynamic = "force-dynamic";
 
-const client = createClient({
-    projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID,
-    dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
-    apiVersion: "2024-01-01",
-    token: process.env.SANITY_WRITE_TOKEN || process.env.SANITY_API_TOKEN, // Match user's Vercel env var
-    useCdn: false,
-});
-
-export async function GET() {
+export async function POST(request: NextRequest) {
+    const auth = requireAdminMutation(request);
+    if (auth instanceof NextResponse) return auth;
     const token = process.env.SANITY_WRITE_TOKEN || process.env.SANITY_API_TOKEN;
     if (!token) {
         return NextResponse.json(
-            { error: "Missing SANITY_WRITE_TOKEN or SANITY_API_TOKEN" },
-            { status: 500 }
+            { error: "Seeding is unavailable" },
+            { status: 503 }
         );
     }
 
@@ -66,7 +61,7 @@ export async function GET() {
         }
 
         return NextResponse.json({ success: true, count: products.length, log });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch {
+        return NextResponse.json({ success: false, error: "Seeding failed" }, { status: 500 });
     }
 }

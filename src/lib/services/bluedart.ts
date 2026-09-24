@@ -68,7 +68,7 @@ class BlueDartService {
                 throw new Error("No JWT Token received in response");
             }
         } catch (error) {
-            console.error("BlueDart Authentication Error:", error);
+            console.error(JSON.stringify({ operation: "bluedart.authenticate", category: "provider_failed" }));
             throw error;
         }
     }

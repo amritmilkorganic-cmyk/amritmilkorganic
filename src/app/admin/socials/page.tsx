@@ -118,13 +118,13 @@ export default function AdminSocialsPage() {
                                         onClick={() => handleConnect("instagram")}
                                         className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
                                     >
-                                        {status.instagram ? "Reconnect Instagram" : "Connect Instagram"}
+                                        {status.instagram
+                                            ? "Reconnect Instagram"
+                                            : "Connect Instagram"}
                                         <ExternalLink className="w-4 h-4" />
                                     </button>
 
-                                    {status.instagram && (
-                                        <SyncButton platform="instagram" />
-                                    )}
+                                    {status.instagram && <SyncButton platform="instagram" />}
                                 </div>
                             </div>
                         </div>
@@ -177,9 +177,7 @@ export default function AdminSocialsPage() {
                                         <ExternalLink className="w-4 h-4" />
                                     </button>
 
-                                    {status.google && (
-                                        <SyncButton platform="google" />
-                                    )}
+                                    {status.google && <SyncButton platform="google" />}
                                 </div>
                             </div>
                         </div>
@@ -211,10 +209,11 @@ function SyncButton({ platform }: { platform: "instagram" | "google" }) {
         setSyncing(true);
         setResult(null);
         try {
-            const endpoint = platform === "instagram" 
-                ? "/api/admin/sync-instagram" 
-                : "/api/admin/sync-google-reviews";
-            const res = await fetch(endpoint);
+            const endpoint =
+                platform === "instagram"
+                    ? "/api/admin/sync-instagram"
+                    : "/api/admin/sync-google-reviews";
+            const res = await fetch(endpoint, { method: "POST" });
             const data = await res.json();
             setResult(data);
         } catch (error) {
@@ -236,19 +235,22 @@ function SyncButton({ platform }: { platform: "instagram" | "google" }) {
                 ) : (
                     <RefreshCw className="w-4 h-4" />
                 )}
-                {syncing ? "Syncing..." : `Sync ${platform === 'instagram' ? 'Feed' : 'Reviews'} Now`}
+                {syncing
+                    ? "Syncing..."
+                    : `Sync ${platform === "instagram" ? "Feed" : "Reviews"} Now`}
             </button>
             {result && (
-                <p className={`text-[10px] text-center font-bold uppercase tracking-wider ${result.success ? 'text-green-500' : 'text-red-500'}`}>
-                    {result.success 
-                        ? `Success: ${result.stats?.created || 0} created, ${result.stats?.skipped || 0} skipped` 
+                <p
+                    className={`text-[10px] text-center font-bold uppercase tracking-wider ${result.success ? "text-green-500" : "text-red-500"}`}
+                >
+                    {result.success
+                        ? `Success: ${result.stats?.created || 0} created, ${result.stats?.skipped || 0} skipped`
                         : `Error: ${result.error}`}
                 </p>
             )}
         </div>
     );
 }
-
 
 function ImportPostForm() {
     const [url, setUrl] = useState("");

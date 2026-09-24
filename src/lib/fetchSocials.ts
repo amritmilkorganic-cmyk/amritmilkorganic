@@ -42,7 +42,7 @@ export async function getInstagramPosts() {
         // Fallback to static, maybe slightly randomized but keep latest first if possible
         return unique.slice(0, 20);
     } catch (error) {
-        console.error("Error fetching Instagram posts:", error);
+        console.error(JSON.stringify({ operation: "social.instagram.list", category: "provider_failed" }));
         return staticInstagramPosts.slice(0, 12);
     }
 }
@@ -77,7 +77,7 @@ export async function getGoogleReviews() {
         // Return latest reviews
         return unique.slice(0, 20);
     } catch (error) {
-        console.error("Error fetching Google reviews:", error);
+        console.error(JSON.stringify({ operation: "social.google_reviews.list", category: "provider_failed" }));
         return staticGoogleReviews.slice(0, 20);
     }
 }

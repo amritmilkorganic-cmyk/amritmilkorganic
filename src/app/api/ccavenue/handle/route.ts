@@ -17,7 +17,6 @@ export async function POST(req: NextRequest) {
         const encryptedResponse = formData.get("encResp") as string;
 
         if (!encryptedResponse) {
-            console.error("No encrypted response received from CCAvenue");
             return NextResponse.redirect(
                 new URL("/checkout?status=error&message=no_response", req.url),
                 { status: 303 }
@@ -27,7 +26,7 @@ export async function POST(req: NextRequest) {
         const workingKey = process.env.CCAVENUE_WORKING_KEY?.trim();
 
         if (!workingKey) {
-            console.error("CCAvenue working key not configured");
+            console.error(JSON.stringify({ operation: "ccavenue.callback", category: "configuration_unavailable" }));
             return NextResponse.redirect(
                 new URL("/checkout?status=error&message=config_error", req.url),
                 { status: 303 }
@@ -39,11 +38,6 @@ export async function POST(req: NextRequest) {
 
         const { order_id, tracking_id, order_status } = responseParams;
 
-        console.log("CCAvenue payment response:", {
-            orderId: order_id,
-            paymentStatus: order_status,
-        });
-
         if (order_status === "Success") {
             let paymentTotal: number | null = null;
 
@@ -54,8 +48,6 @@ export async function POST(req: NextRequest) {
                         "success",
                         tracking_id
                     );
-
-                    console.log(`Order ${order_id} payment successful`);
 
                     if (updatedOrder) {
                         paymentTotal = updatedOrder.total || null;
@@ -79,10 +71,10 @@ export async function POST(req: NextRequest) {
                         });
                     }
                 } else {
-                    console.error("Skipping Sanity update: SANITY_WRITE_TOKEN missing");
+                    console.error(JSON.stringify({ operation: "ccavenue.order.update", category: "configuration_unavailable" }));
                 }
-            } catch (dbError) {
-                console.error("Failed to update order:", dbError);
+            } catch {
+                console.error(JSON.stringify({ operation: "ccavenue.order.update", category: "data_update_failed" }));
             }
 
             const successUrl = new URL("/checkout/success", req.url);
@@ -109,16 +101,13 @@ export async function POST(req: NextRequest) {
         } else {
             try {
                 await updateOrderPaymentStatus(order_id, "failed");
-            } catch (dbError) {
-                console.error("Failed to update order:", dbError);
+            } catch {
+                console.error(JSON.stringify({ operation: "ccavenue.order.update", category: "data_update_failed" }));
             }
 
             const failureUrl = new URL("/checkout", req.url);
             failureUrl.searchParams.set("status", "failed");
-            failureUrl.searchParams.set(
-                "message",
-                responseParams.status_message || "Payment failed"
-            );
+            failureUrl.searchParams.set("message", "payment_failed");
             failureUrl.searchParams.set("order_id", order_id || "");
 
             return NextResponse.redirect(failureUrl, {
@@ -126,8 +115,8 @@ export async function POST(req: NextRequest) {
                 headers: { "Cache-Control": "no-store, max-age=0" },
             });
         }
-    } catch (error: any) {
-        console.error("CCAvenue handle error:", error);
+    } catch {
+        console.error(JSON.stringify({ operation: "ccavenue.callback", category: "processing_failed" }));
         return NextResponse.redirect(
             new URL("/checkout?status=error&message=processing_error", req.url)
         );
