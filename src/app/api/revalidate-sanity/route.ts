@@ -34,11 +34,7 @@ export async function POST(req: NextRequest) {
         const type = bodyAny._type;
         const slug = bodyAny.slug?.current;
 
-        console.log(
-            `[Sanity Revalidate] Revalidating type: ${type}${
-                slug ? ` (slug: ${slug})` : ""
-            }`
-        );
+        console.log(JSON.stringify({ operation: "sanity.revalidate", category: "started" }));
 
         // Revalidate specific content type
         revalidateTag(type);
@@ -89,7 +85,7 @@ export async function POST(req: NextRequest) {
             timestamp: new Date().toISOString(),
         });
     } catch (err: any) {
-        console.error("[Sanity Revalidate] Error:", err.message);
+        console.error(JSON.stringify({ operation: "sanity.revalidate", category: "operation_failed" }));
         return new Response(err.message, { status: 500 });
     }
 }

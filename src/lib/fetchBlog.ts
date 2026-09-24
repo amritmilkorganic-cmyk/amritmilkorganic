@@ -74,7 +74,7 @@ export async function getSanityBlogPosts(
             total: total || 0,
         };
     } catch (error) {
-        console.error("Error fetching blog posts from Sanity:", error);
+        console.error(JSON.stringify({ operation: "blog.list", category: "provider_failed" }));
         return { posts: [], total: 0 };
     }
 }
@@ -106,7 +106,7 @@ export async function getSanityBlogPost(slug: string): Promise<SanityBlogPost | 
 
         return post || null;
     } catch (error) {
-        console.error(`Error fetching blog post ${slug} from Sanity:`, error);
+        console.error(JSON.stringify({ operation: "blog.read", category: "provider_failed" }));
         return null;
     }
 }
@@ -138,7 +138,7 @@ export async function getSanityBlogCategories() {
             count,
         }));
     } catch (error) {
-        console.error("Error fetching blog categories from Sanity:", error);
+        console.error(JSON.stringify({ operation: "blog.categories", category: "provider_failed" }));
         return [];
     }
 }

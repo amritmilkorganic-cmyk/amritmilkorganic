@@ -35,14 +35,14 @@ export async function sendHandoverNotification(payload: HandoverPayload): Promis
         const response = await fetch(url);
 
         if (response.ok) {
-            console.log(`[WhatsApp] Handover sent for ${payload.name}`);
+            console.log(JSON.stringify({ operation: "ai.whatsapp", category: "completed" }));
             return true;
         } else {
-            console.error("[WhatsApp] API Error:", response.statusText);
+            console.error(JSON.stringify({ operation: "ai.whatsapp", category: "provider_failed" }));
             return false;
         }
     } catch (error) {
-        console.error("[WhatsApp] Network Error:", error);
+        console.error(JSON.stringify({ operation: "ai.whatsapp", category: "network_failed" }));
         return false;
     }
 }

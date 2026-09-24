@@ -67,7 +67,7 @@ export async function getWordPressPosts(page = 1, perPage = 12) {
             total: 0, // TODO: Need to expose response headers in client.ts to get X-WP-Total
         };
     } catch (e) {
-        console.error("Error fetching WP posts:", e);
+        console.error(JSON.stringify({ operation: "wordpress.posts.list", category: "provider_failed" }));
         return { posts: [], total: 0 };
     }
 }

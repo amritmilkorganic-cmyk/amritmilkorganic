@@ -2,6 +2,7 @@ import blog from "./blog";
 import contactQuery from "./contactQuery";
 import coupon from "./coupon";
 import customerAccount from "./customerAccount";
+import oauthNonce from "./oauthNonce";
 import googleReview from "./googleReview";
 import instagramPost from "./instagramPost";
 import order from "./order";
@@ -15,6 +16,7 @@ export const schemaTypes = [
     order,
     subscription,
     customerAccount,
+    oauthNonce,
     contactQuery,
     instagramPost,
     googleReview,

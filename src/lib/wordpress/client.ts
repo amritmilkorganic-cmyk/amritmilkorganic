@@ -44,11 +44,8 @@ export async function wpFetch<T>(endpoint: string, options: WPRequestOptions = {
     });
 
     if (!response.ok) {
-        const errorBody = await response.text();
-        console.error(
-            `WordPress Fetch Error: ${response.status} ${response.statusText}`,
-            errorBody
-        );
+        await response.text();
+        console.error(JSON.stringify({ operation: "wordpress.fetch", category: "provider_failed" }));
         throw new Error(`WordPress API Error: ${response.status} ${response.statusText}`);
     }
 

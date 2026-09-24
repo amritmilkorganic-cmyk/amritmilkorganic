@@ -1,10 +1,13 @@
 import { PrismaClient } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin, requireAdminMutation } from "@/lib/security/http";
 
 const prisma = new PrismaClient();
 
 // GET: List all coupons
 export async function GET(req: NextRequest) {
+    const auth = requireAdmin(req);
+    if (auth instanceof NextResponse) return auth;
     try {
         const coupons = await prisma.coupon.findMany({
             orderBy: { createdAt: "desc" },
@@ -21,6 +24,8 @@ export async function GET(req: NextRequest) {
 
 // POST: Create new coupon
 export async function POST(req: NextRequest) {
+    const auth = requireAdminMutation(req);
+    if (auth instanceof NextResponse) return auth;
     try {
         const body = await req.json();
         const { code, type, value, minOrderValue, isActive, description } = body;
@@ -46,7 +51,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({ success: true, coupon });
     } catch (error: any) {
-        console.error("Create coupon error:", error);
+        console.error(JSON.stringify({ operation: "admin.coupon.create", category: error?.code === "P2002" ? "duplicate" : "data_update_failed" }));
         if (error.code === "P2002") {
             return NextResponse.json(
                 { success: false, error: "Coupon code already exists" },
@@ -62,6 +67,8 @@ export async function POST(req: NextRequest) {
 
 // DELETE: Delete coupon
 export async function DELETE(req: NextRequest) {
+    const auth = requireAdminMutation(req);
+    if (auth instanceof NextResponse) return auth;
     try {
         const { searchParams } = new URL(req.url);
         const id = searchParams.get("id");

@@ -97,7 +97,7 @@ export function validateOutput(output: string): OutputValidationResult {
     }
 
     if (matchedPatterns.length > 0) {
-        console.warn("[Guardrails] Sensitive info detected in output:", matchedPatterns);
+        console.warn(JSON.stringify({ operation: "ai.guardrails", category: "sensitive_output_blocked" }));
         return {
             valid: false,
             containsSensitiveInfo: true,
@@ -194,11 +194,7 @@ export async function logSecurityEvent(
     details: string
 ): Promise<void> {
     // In production, this would log to a security monitoring system
-    console.error(`[SECURITY EVENT] ${eventType}:`, {
-        timestamp: new Date().toISOString(),
-        type: eventType,
-        details: details.substring(0, 200), // Limit log size
-    });
+    console.error(JSON.stringify({ operation: "ai.security", category: eventType }));
 
     // TODO: Integrate with analytics/monitoring system
     // await prisma.securityLog.create({ data: { eventType, details } });

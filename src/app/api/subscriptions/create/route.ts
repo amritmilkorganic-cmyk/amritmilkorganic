@@ -41,11 +41,8 @@ export async function POST(req: NextRequest) {
         const workingKey = process.env.CCAVENUE_WORKING_KEY?.trim();
 
         if (!merchantId || !accessCode || !workingKey) {
-            console.error("[Subscription] CCAvenue credentials are not configured");
-            return NextResponse.json(
-                { error: "Payment gateway is not configured" },
-                { status: 500 }
-            );
+            console.error(JSON.stringify({ operation: "subscription.create", category: "configuration_unavailable" }));
+            return NextResponse.json({ error: "Payment service is unavailable" }, { status: 503 });
         }
 
         const redirectUrl = "https://www.amritmilkorganic.com/api/subscriptions/handle";
@@ -78,10 +75,6 @@ export async function POST(req: NextRequest) {
         params.set("merchant_param3", planType); // Plan Type (one_time, trial_5day, monthly_30day)
         params.set("merchant_param4", productName); // Product Name
 
-        console.log(
-            `[Subscription] Creating prepaid payment ${subscriptionId} — plan: ${planType}, amount: ₹${amount}`
-        );
-
         // Encrypt for CCAvenue
         const encryptedData = encrypt(params.toString(), workingKey);
 
@@ -104,11 +97,10 @@ export async function POST(req: NextRequest) {
                 totalAmount: amount,
             },
         });
-    } catch (error: any) {
-        console.error("[Subscription] Creation error:", error);
-        return NextResponse.json(
-            { error: error.message || "Failed to create subscription" },
-            { status: 500 }
+    } catch {
+        console.error(
+            JSON.stringify({ operation: "subscription.create", category: "operation_failed" })
         );
+        return NextResponse.json({ error: "Failed to create subscription" }, { status: 500 });
     }
 }

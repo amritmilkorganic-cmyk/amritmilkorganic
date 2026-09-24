@@ -77,7 +77,7 @@ export async function getProducts(): Promise<any[]> {
     console.log("[fetchProducts] No Sanity products found, using static fallback");
     return staticProducts.map((p: any) => normalizeProduct(p));
   } catch (error) {
-    console.error("Error fetching products from Sanity:", error);
+    console.error(JSON.stringify({ operation: "products.list", category: "provider_failed" }));
     return staticProducts.map((p: any) => normalizeProduct(p));
   }
 }
@@ -126,7 +126,7 @@ export async function getProductBySlug(slug: string): Promise<any | null> {
 
     return normalizeProduct(result, localMatch);
   } catch (error) {
-    console.error(`Error fetching product ${slug} from Sanity:`, error);
+    console.error(JSON.stringify({ operation: "products.read", category: "provider_failed" }));
     const localMatch = staticProducts.find((p) => p.slug === slug);
     return localMatch ? normalizeProduct(localMatch) : null;
   }

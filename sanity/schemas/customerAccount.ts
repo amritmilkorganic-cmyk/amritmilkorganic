@@ -20,6 +20,15 @@ export default defineType({
         }),
 
         defineField({
+            name: "canonicalPhone",
+            title: "Canonical Phone",
+            type: "string",
+            description: "Server-normalized 10 digit phone used for exact identity matching.",
+            readOnly: true,
+            validation: (Rule) => Rule.regex(/^\d{10}$/),
+        }),
+
+        defineField({
             name: "email",
             title: "Email",
             type: "string",

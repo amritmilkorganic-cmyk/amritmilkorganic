@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { requireAdminMutation } from "@/lib/security/http";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+    const auth = requireAdminMutation(request);
+    if (auth instanceof NextResponse) return auth;
     try {
         const { url } = await request.json();
 
@@ -73,10 +77,9 @@ export async function POST(request: Request) {
                 url,
             },
         });
-    } catch (error: any) {
-        console.error("Scrape Error:", error);
+    } catch {
         return NextResponse.json(
-            { success: false, error: error.message || "Failed to scrape post" },
+            { success: false, error: "Failed to scrape post" },
             { status: 500 }
         );
     }

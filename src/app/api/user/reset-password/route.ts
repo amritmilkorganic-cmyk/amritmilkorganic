@@ -2,6 +2,7 @@ import { writeClient } from "@/lib/sanity";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { validateMutationOrigin } from "@/lib/security/http";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -11,6 +12,9 @@ function hashToken(token: string) {
 }
 
 export async function POST(req: NextRequest) {
+    if (!validateMutationOrigin(req)) {
+        return NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
+    }
     try {
         const body = await req.json();
 
@@ -79,7 +83,7 @@ export async function POST(req: NextRequest) {
             message: "Password has been reset successfully.",
         });
     } catch (error) {
-        console.error("Reset password error:", error);
+        console.error(JSON.stringify({ operation: "customer.password.reset", category: "operation_failed" }));
 
         return NextResponse.json(
             { error: "Unable to reset password." },

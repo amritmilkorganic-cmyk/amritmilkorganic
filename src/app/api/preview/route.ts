@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { validateMutationOrigin } from "@/lib/security/http";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -38,10 +39,7 @@ export async function GET(request: NextRequest) {
 
         if (!response.ok) {
             const error = await response.json();
-            return NextResponse.json(
-                { error: error.message || "Invalid preview token" },
-                { status: 401 }
-            );
+            return NextResponse.json({ error: "Invalid preview token" }, { status: 401 });
         }
 
         const previewData = await response.json();
@@ -87,7 +85,7 @@ export async function GET(request: NextRequest) {
 
         return redirectResponse;
     } catch (error) {
-        console.error("[Preview] Error:", error);
+        console.error(JSON.stringify({ operation: "preview.read", category: "provider_failed" }));
         return NextResponse.json({ error: "Failed to fetch preview data" }, { status: 500 });
     }
 }
@@ -96,6 +94,9 @@ export async function GET(request: NextRequest) {
  * Exit preview mode
  */
 export async function DELETE(request: NextRequest) {
+    if (!validateMutationOrigin(request)) {
+        return NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
+    }
     const response = NextResponse.json({ success: true });
 
     response.cookies.delete("wp_preview_mode");

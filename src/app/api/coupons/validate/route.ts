@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
                 next: { tags: ["coupon"] }
             });
         } catch (sanityError) {
-            console.warn("Sanity fetch failed, using fallback:", sanityError);
+            console.warn(JSON.stringify({ operation: "coupon.read", category: "fallback_used" }));
         }
 
         // If not found in Sanity, check fallback list
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
             message: `Coupon applied: ${coupon.type === "percentage" ? coupon.value + "% OFF" : "₹" + coupon.value + " OFF"}`,
         });
     } catch (error: any) {
-        console.error("Coupon validation error:", error);
+        console.error(JSON.stringify({ operation: "coupon.validate", category: "operation_failed" }));
         return NextResponse.json(
             { valid: false, message: "Error validating coupon" },
             { status: 500 }

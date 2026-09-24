@@ -1,24 +1,34 @@
 import { client } from "@/lib/sanity";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { clearOAuthState, consumeOAuthState } from "@/lib/security/oauth-state";
+import { sessionFromRequest } from "@/lib/security/session";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const REDIRECT_URI = `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/google/callback`;
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
     const error = searchParams.get("error");
+    const stateResponse = NextResponse.redirect(
+        `${process.env.NEXT_PUBLIC_SITE_URL}/admin/socials?error=invalid_oauth_state`
+    );
+    const admin = sessionFromRequest(request, "admin");
+    if (!admin || !(await consumeOAuthState(request, stateResponse, "google", admin.sub)))
+        return stateResponse;
 
     if (error) {
-        return NextResponse.redirect(
-            `${process.env.NEXT_PUBLIC_SITE_URL}/admin/socials?error=${error}`
+        return clearOAuthState(
+            NextResponse.redirect(
+                `${process.env.NEXT_PUBLIC_SITE_URL}/admin/socials?error=google_authorization_denied`
+            )
         );
     }
 
     if (!code) {
-        return NextResponse.redirect(
-            `${process.env.NEXT_PUBLIC_SITE_URL}/admin/socials?error=no_code`
+        return clearOAuthState(
+            NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL}/admin/socials?error=no_code`)
         );
     }
 
@@ -71,13 +81,16 @@ export async function GET(request: Request) {
             .patch(patch)
             .commit();
 
-        return NextResponse.redirect(
-            `${process.env.NEXT_PUBLIC_SITE_URL}/admin/socials?success=google_connected`
+        return clearOAuthState(
+            NextResponse.redirect(
+                `${process.env.NEXT_PUBLIC_SITE_URL}/admin/socials?success=google_connected`
+            )
         );
-    } catch (err: any) {
-        console.error("Google Auth Error:", err);
-        return NextResponse.redirect(
-            `${process.env.NEXT_PUBLIC_SITE_URL}/admin/socials?error=${encodeURIComponent(err.message)}`
+    } catch {
+        return clearOAuthState(
+            NextResponse.redirect(
+                `${process.env.NEXT_PUBLIC_SITE_URL}/admin/socials?error=google_connection_failed`
+            )
         );
     }
 }

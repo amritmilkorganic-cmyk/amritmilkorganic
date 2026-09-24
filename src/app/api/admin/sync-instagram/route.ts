@@ -1,10 +1,13 @@
 import { syncInstagramToSanity } from "@/lib/services/instagram";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdminMutation } from "@/lib/security/http";
 import { revalidateTag } from "next/cache";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request) {
+export async function POST(request: NextRequest) {
+    const auth = requireAdminMutation(request);
+    if (auth instanceof NextResponse) return auth;
     try {
         // In a real app, add authentication check here
         // const authHeader = request.headers.get('authorization');
@@ -20,8 +23,10 @@ export async function GET(request: Request) {
             message: "Sync completed successfully",
             stats: results,
         });
-    } catch (error: any) {
-        console.error("Sync failed:", error);
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch {
+        return NextResponse.json(
+            { success: false, error: "Instagram sync failed" },
+            { status: 500 }
+        );
     }
 }

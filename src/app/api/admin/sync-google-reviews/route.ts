@@ -1,10 +1,13 @@
 import { syncGoogleReviewsToSanity } from "@/lib/services/google";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdminMutation } from "@/lib/security/http";
 import { revalidateTag } from "next/cache";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request) {
+export async function POST(request: NextRequest) {
+    const auth = requireAdminMutation(request);
+    if (auth instanceof NextResponse) return auth;
     try {
         const results = await syncGoogleReviewsToSanity();
 
@@ -16,8 +19,7 @@ export async function GET(request: Request) {
             message: "Google Reviews sync completed successfully",
             stats: results,
         });
-    } catch (error: any) {
-        console.error("Google Sync failed:", error);
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch {
+        return NextResponse.json({ success: false, error: "Google sync failed" }, { status: 500 });
     }
 }

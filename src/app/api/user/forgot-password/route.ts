@@ -2,19 +2,20 @@ import { writeClient } from "@/lib/sanity";
 import { sendPasswordResetEmail } from "@/lib/notifications";
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { findUniqueCustomerAccount } from "@/lib/security/customer-identity";
+import { validateMutationOrigin } from "@/lib/security/http";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-function cleanPhoneNumber(phone: string) {
-    return phone.replace(/\D/g, "").slice(-10);
-}
 
 function hashToken(token: string) {
     return crypto.createHash("sha256").update(token).digest("hex");
 }
 
 export async function POST(req: NextRequest) {
+    if (!validateMutationOrigin(req)) {
+        return NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
+    }
     try {
         const body = await req.json();
         const identifier = String(body.identifier || "").trim();
@@ -26,31 +27,28 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const cleanPhone = cleanPhoneNumber(identifier);
         const isEmail = identifier.includes("@");
-
-        const account = await writeClient.fetch(
-            `*[
-                _type == "customerAccount" &&
-                (
-                    email == $email ||
-                    phone match $phoneMatch
-                )
-            ][0] {
-                _id,
-                name,
-                phone,
-                email,
-                isActive
-            }`,
-            {
-                email: isEmail ? identifier.toLowerCase() : "",
-                phoneMatch: cleanPhone ? `*${cleanPhone}*` : "__NO_PHONE_MATCH__",
-            }
-        );
+        let account = null;
+        let ambiguous = false;
+        if (isEmail) {
+            const matches = await writeClient.fetch(
+                `*[_type == "customerAccount" && email == $email]{_id, name, phone, email, isActive}`,
+                { email: identifier.toLowerCase() }
+            );
+            account = matches.length === 1 ? matches[0] : null;
+            ambiguous = matches.length > 1;
+        } else {
+            const result = await findUniqueCustomerAccount(
+                writeClient,
+                identifier,
+                "_id, name, phone, email, isActive"
+            );
+            account = result.account;
+            ambiguous = result.ambiguous;
+        }
 
         // Security: do not reveal whether the account exists.
-        if (!account || !account.email || account.isActive === false) {
+        if (ambiguous || !account || !account.email || account.isActive === false) {
             return NextResponse.json({
                 ok: true,
                 message:
@@ -94,7 +92,7 @@ export async function POST(req: NextRequest) {
                 "If an active account exists, a password reset email has been sent.",
         });
     } catch (error) {
-        console.error("Forgot password error:", error);
+        console.error(JSON.stringify({ operation: "customer.password.forgot", category: "operation_failed" }));
 
         return NextResponse.json(
             { error: "Unable to process password reset request." },

@@ -58,10 +58,10 @@ export async function POST(req: NextRequest) {
             "https://www.amritmilkorganic.com/api/ccavenue/handle";
 
         if (!merchantId || !accessCode || !workingKey) {
-            console.error("CCAvenue credentials missing");
+            console.error(JSON.stringify({ operation: "ccavenue.initiate", category: "configuration_unavailable" }));
             return NextResponse.json(
-                { error: "Payment gateway credentials missing." },
-                { status: 500 }
+                { error: "Payment service is unavailable" },
+                { status: 503 }
             );
         }
 
@@ -83,21 +83,6 @@ export async function POST(req: NextRequest) {
             currency: "INR",
         });
 
-        console.log(
-            "CCAvenue Request Data:",
-            JSON.stringify(
-                {
-                    orderId: safeOrderId,
-                    amount,
-                    merchantId: "***",
-                    redirectUrl,
-                    cancelUrl,
-                },
-                null,
-                2
-            )
-        );
-
         const encryptedData = encrypt(requestData, workingKey);
 
         const isTestMode = process.env.CCAVENUE_TEST_MODE === "true";
@@ -112,10 +97,10 @@ export async function POST(req: NextRequest) {
             ccavenueUrl,
             orderId: safeOrderId,
         });
-    } catch (error: any) {
-        console.error("CCAvenue initiation error:", error);
+    } catch {
+        console.error(JSON.stringify({ operation: "ccavenue.initiate", category: "provider_failed" }));
         return NextResponse.json(
-            { error: error.message || "Failed to initiate payment" },
+            { error: "Failed to initiate payment" },
             { status: 500 }
         );
     }
