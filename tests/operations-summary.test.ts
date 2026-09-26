@@ -3,6 +3,8 @@ import {
     getOperationsBoundaries,
     normalizeOperationsSummary,
     OPERATIONS_TIME_ZONE,
+    EXCEPTION_LIMIT,
+    operationsSummaryQuery,
 } from "@/lib/operations-summary";
 
 describe("operations summary calculations", () => {
@@ -34,5 +36,30 @@ describe("operations summary calculations", () => {
             kpis: { ordersToday: 0, grossOrderValue: 0, onlinePaidValue: 0 },
             exceptions: { failedOnlinePayments: [] },
         });
+    });
+
+    it("caps audit samples and keeps COD and online history separate", () => {
+        expect(EXCEPTION_LIMIT).toBe(25);
+        expect(operationsSummaryQuery).toContain('"historicalOnlineOrderCount"');
+        expect(operationsSummaryQuery).toContain('"historicalCodOrderCount"');
+        expect(operationsSummaryQuery).toContain("[0...$limit]");
+    });
+
+    it("queries every Phase 3.3A data-accuracy condition", () => {
+        for (const condition of [
+            "duplicateOrderIds",
+            "duplicateTransactionIds",
+            "successfulOnlineMissingTransactionId",
+            "onlinePaymentsPending24Hours",
+            "invalidAmounts",
+            "invalidDates",
+            "invalidPaymentStatuses",
+            "invalidFulfillmentStatuses",
+            "orderTotalDiscrepancies",
+            "missingCanonicalCustomerOwnership",
+            "missingSubscriptionScheduleOrFields",
+        ]) {
+            expect(operationsSummaryQuery).toContain(`"${condition}"`);
+        }
     });
 });

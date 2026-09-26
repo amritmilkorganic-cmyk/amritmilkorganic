@@ -19,7 +19,19 @@ describe("admin operations summary route", () => {
         process.env.AUTH_SESSION_SECRET = "a-secure-test-secret-that-is-more-than-thirty-two-bytes";
         mocks.fetch.mockResolvedValue({
             kpis: { ordersToday: 0, grossOrderValue: null },
-            exceptions: { failedOnlinePayments: [] },
+            auditCounts: { duplicateOrderIds: 1 },
+            auditSamples: {
+                duplicate_order_id: [
+                    {
+                        _id: "raw-document-id",
+                        recordType: "order",
+                        issue: "duplicate_order_id",
+                        amount: 42,
+                        orderNumber: "raw-order-id",
+                        customerName: "Private Person",
+                    },
+                ],
+            },
         });
     });
 
@@ -45,11 +57,20 @@ describe("admin operations summary route", () => {
         expect(body).toMatchObject({
             success: true,
             timeZone: "Asia/Kolkata",
-            exceptionLimit: 50,
+            exceptionLimit: 25,
             kpis: { ordersToday: 0, grossOrderValue: 0 },
-            exceptions: { failedOnlinePayments: [] },
+            auditCounts: { duplicateOrderIds: 1 },
         });
+        expect(body.auditSamples.duplicate_order_id[0]).toMatchObject({
+            maskedId: expect.stringMatching(/^[a-f0-9]{20}$/),
+            recordType: "order",
+            issue: "duplicate_order_id",
+            amount: 42,
+        });
+        expect(JSON.stringify(body)).not.toMatch(
+            /raw-document-id|raw-order-id|Private Person|customerName|orderNumber/
+        );
         expect(mocks.fetch).toHaveBeenCalledOnce();
-        expect(mocks.fetch.mock.calls[0][1]).toMatchObject({ limit: 50 });
+        expect(mocks.fetch.mock.calls[0][1]).toMatchObject({ limit: 25 });
     });
 });

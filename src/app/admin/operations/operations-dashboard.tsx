@@ -3,18 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 
 type QueueRecord = {
-    _id: string;
-    recordType?: string;
-    orderNumber?: string;
-    subscriptionId?: string;
-    customerName?: string;
-    name?: string;
-    phone?: string;
-    total?: number;
+    maskedId: string;
+    recordType: string;
+    issue: string;
+    amount?: number;
+    paymentMethod?: string;
     paymentStatus?: string;
-    orderStatus?: string;
-    nextDelivery?: string;
-    _createdAt?: string;
+    fulfillmentStatus?: string;
+    occurredAt?: string;
 };
 
 type Summary = {
@@ -26,6 +22,10 @@ type Summary = {
         ordersLast7Days: number;
         grossOrderValue: number;
         onlinePaidValue: number;
+        historicalOnlineOrderCount: number;
+        historicalOnlineValue: number;
+        historicalCodOrderCount: number;
+        historicalCodValue: number;
         codPendingValue: number;
         pendingPaymentCount: number;
         failedPaymentCount: number;
@@ -37,7 +37,8 @@ type Summary = {
         unownedOrders: number;
         unownedSubscriptions: number;
     };
-    exceptions: Record<string, QueueRecord[]>;
+    auditCounts: Record<string, number>;
+    auditSamples: Record<string, QueueRecord[]>;
 };
 
 const currency = new Intl.NumberFormat("en-IN", {
@@ -46,16 +47,42 @@ const currency = new Intl.NumberFormat("en-IN", {
     maximumFractionDigits: 0,
 });
 
-const queueLabels: Record<string, string> = {
-    onlinePaymentsPending24Hours: "Online payments pending beyond 24 hours",
-    failedOnlinePayments: "Failed online payments",
-    paidOrdersNotProcessing: "Paid orders not being processed or fulfilled",
-    deliveredCodPaymentPending: "Delivered COD orders still payment-pending",
-    activeSubscriptionsMissingNextDelivery: "Active subscriptions missing nextDelivery",
-    overdueSubscriptionDeliveries: "Overdue subscription deliveries",
-    paidSubscriptionOrdersWithoutSubscription:
-        "Paid subscription orders without a corresponding subscription",
-    ambiguousOrUnownedCustomers: "Ambiguous or unowned customer records",
+const auditQueues: Record<string, { label: string; countKey: string }> = {
+    duplicate_order_id: { label: "Duplicate order IDs", countKey: "duplicateOrderIds" },
+    duplicate_transaction_id: {
+        label: "Duplicate transaction IDs",
+        countKey: "duplicateTransactionIds",
+    },
+    successful_online_missing_transaction_id: {
+        label: "Successful online payments without transaction IDs",
+        countKey: "successfulOnlineMissingTransactionId",
+    },
+    online_payment_pending_over_24_hours: {
+        label: "Online payments pending beyond 24 hours",
+        countKey: "onlinePaymentsPending24Hours",
+    },
+    invalid_amount: { label: "Invalid amounts", countKey: "invalidAmounts" },
+    invalid_date: { label: "Invalid dates", countKey: "invalidDates" },
+    invalid_payment_status: {
+        label: "Invalid payment statuses",
+        countKey: "invalidPaymentStatuses",
+    },
+    invalid_fulfillment_status: {
+        label: "Invalid fulfillment statuses",
+        countKey: "invalidFulfillmentStatuses",
+    },
+    order_total_discrepancy: {
+        label: "Order-total discrepancies",
+        countKey: "orderTotalDiscrepancies",
+    },
+    missing_canonical_customer_ownership: {
+        label: "Missing canonical customer ownership",
+        countKey: "missingCanonicalCustomerOwnership",
+    },
+    missing_subscription_schedule_or_fields: {
+        label: "Missing subscription schedules or required fields",
+        countKey: "missingSubscriptionScheduleOrFields",
+    },
 };
 
 function displayDate(value: string | undefined, timeZone: string) {
@@ -173,6 +200,16 @@ export default function OperationsDashboard() {
                                     note="All-time delivered or undelivered COD receivables"
                                 />
                                 <Metric
+                                    label="Historical online orders"
+                                    value={summary.kpis.historicalOnlineOrderCount}
+                                    note={currency.format(summary.kpis.historicalOnlineValue)}
+                                />
+                                <Metric
+                                    label="Historical COD orders"
+                                    value={summary.kpis.historicalCodOrderCount}
+                                    note={currency.format(summary.kpis.historicalCodValue)}
+                                />
+                                <Metric
                                     label="Pending payments"
                                     value={summary.kpis.pendingPaymentCount}
                                 />
@@ -232,11 +269,13 @@ export default function OperationsDashboard() {
                             </h2>
                             <p className="mb-5 mt-1 text-sm text-stone-600 dark:text-stone-300">
                                 Each queue is limited to {summary.exceptionLimit} records. Counts
-                                shown here are queue rows, not uncapped totals.
+                                are uncapped; samples contain masked identifiers only. CCAvenue
+                                settlement confidence requires external gateway reconciliation.
                             </p>
                             <div className="space-y-5">
-                                {Object.entries(queueLabels).map(([key, label]) => {
-                                    const records = summary.exceptions[key] || [];
+                                {Object.entries(auditQueues).map(([key, queue]) => {
+                                    const records = summary.auditSamples[key] || [];
+                                    const count = summary.auditCounts[queue.countKey] || 0;
                                     return (
                                         <details
                                             key={key}
@@ -244,12 +283,9 @@ export default function OperationsDashboard() {
                                             open={records.length > 0}
                                         >
                                             <summary className="cursor-pointer px-5 py-4 font-semibold">
-                                                {label}{" "}
+                                                {queue.label}{" "}
                                                 <span className="ml-2 rounded-full bg-stone-100 px-2 py-1 text-xs dark:bg-slate-700">
-                                                    {records.length}
-                                                    {records.length === summary.exceptionLimit
-                                                        ? "+"
-                                                        : ""}
+                                                    {count} total · {records.length} sampled
                                                 </span>
                                             </summary>
                                             {records.length === 0 ? (
@@ -264,50 +300,45 @@ export default function OperationsDashboard() {
                                                                 <th className="px-4 py-3">
                                                                     Record
                                                                 </th>
-                                                                <th className="px-4 py-3">
-                                                                    Customer
-                                                                </th>
+                                                                <th className="px-4 py-3">Issue</th>
                                                                 <th className="px-4 py-3">
                                                                     Value / status
                                                                 </th>
                                                                 <th className="px-4 py-3">
-                                                                    Relevant date
+                                                                    Recorded date
                                                                 </th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
                                                             {records.map((record) => (
                                                                 <tr
-                                                                    key={record._id}
+                                                                    key={record.maskedId}
                                                                     className="border-t dark:border-white/10"
                                                                 >
                                                                     <td className="px-4 py-3 font-medium">
-                                                                        {record.orderNumber ||
-                                                                            record.subscriptionId ||
-                                                                            `${record.recordType || "record"} · ${record._id.slice(0, 10)}`}
+                                                                        {record.recordType} ·{" "}
+                                                                        {record.maskedId}
                                                                     </td>
                                                                     <td className="px-4 py-3">
-                                                                        {record.customerName ||
-                                                                            record.name ||
-                                                                            record.phone ||
-                                                                            "—"}
+                                                                        {record.issue.replaceAll(
+                                                                            "_",
+                                                                            " "
+                                                                        )}
                                                                     </td>
                                                                     <td className="px-4 py-3">
-                                                                        {typeof record.total ===
+                                                                        {typeof record.amount ===
                                                                         "number"
                                                                             ? currency.format(
-                                                                                  record.total
+                                                                                  record.amount
                                                                               )
-                                                                            : record.orderStatus ||
-                                                                                record.paymentStatus ||
-                                                                                record.nextDelivery
+                                                                            : record.fulfillmentStatus ||
+                                                                                record.paymentStatus
                                                                               ? "Review"
                                                                               : "—"}
                                                                     </td>
                                                                     <td className="px-4 py-3">
                                                                         {displayDate(
-                                                                            record.nextDelivery ||
-                                                                                record._createdAt,
+                                                                            record.occurredAt,
                                                                             summary.timeZone
                                                                         )}
                                                                     </td>
