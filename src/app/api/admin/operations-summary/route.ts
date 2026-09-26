@@ -8,6 +8,7 @@ import {
     operationsSummaryQuery,
 } from "@/lib/operations-summary";
 import { NextRequest, NextResponse } from "next/server";
+import { sanitizeAuditSamples } from "@/lib/operations-audit";
 
 export const dynamic = "force-dynamic";
 
@@ -23,13 +24,15 @@ export async function GET(request: NextRequest) {
             ...boundaries,
             limit: EXCEPTION_LIMIT,
         });
+        const normalized = normalizeOperationsSummary(result);
         return NextResponse.json({
             success: true,
             asOf: now.toISOString(),
             timeZone: OPERATIONS_TIME_ZONE,
             exceptionLimit: EXCEPTION_LIMIT,
             window: boundaries,
-            ...normalizeOperationsSummary(result),
+            ...normalized,
+            auditSamples: sanitizeAuditSamples(normalized.auditSamples, EXCEPTION_LIMIT),
         });
     } catch {
         safeLog("admin.operations_summary.read", request, "data_access_failed");
