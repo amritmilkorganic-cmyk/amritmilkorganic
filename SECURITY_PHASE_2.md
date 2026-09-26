@@ -26,6 +26,8 @@ Existing variables remain required and unchanged: `SANITY_WRITE_TOKEN` (or the e
 - Sessions are stateless and remain valid for up to seven days unless the cookie is cleared or `AUTH_SESSION_SECRET` is rotated. There is no per-session server-side revocation list.
 - Administrator authentication is a single environment-configured account; use a password manager and rotate it. MFA is not implemented by this application.
 - Login rate limiting should also be enforced at the Vercel firewall/WAF layer.
+- The application also enforces a shared five-attempt/15-minute administrator-login limit using the existing Sanity dataset, so the limit is consistent across Vercel function instances. Failed and blocked attempts count by both keyed IP digest and keyed normalized-principal digest. A blocked request returns `429` and `Retry-After`. If Sanity cannot check or write the security record, login fails closed; no paid external rate-limit service is required.
+- Administrator login audit documents record only the outcome, timestamp, and keyed digests of the client address and submitted principal. They never contain the email address, password, configured password hash, cookie, or session token. Limit access to `adminLoginAudit` documents through Sanity roles, define an organizational retention period, and periodically delete records older than that period.
 - OAuth provider tokens continue to be stored in the existing Sanity settings document. Sanity access policy and token scope remain part of the trust boundary.
 
 ## Customer ownership backfill

@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 
 const sanity = vi.hoisted(() => ({
   fetch: vi.fn(),
+  create: vi.fn(),
   patchCommit: vi.fn(),
 }));
 
@@ -13,7 +14,7 @@ vi.mock("@/lib/sanity", () => {
     ifRevisionId: () => ({ set: () => ({ commit: sanity.patchCommit }) }),
   });
   return {
-    writeClient: { fetch: sanity.fetch, patch },
+    writeClient: { fetch: sanity.fetch, create: sanity.create, patch },
     client: { fetch: sanity.fetch, patch },
   };
 });
@@ -48,6 +49,8 @@ describe("actual customer and administrator routes", () => {
     process.env.AUTH_SESSION_SECRET = `base64:${Buffer.alloc(32, 9).toString("base64")}`;
     process.env.ADMIN_EMAIL = "admin@example.com";
     process.env.ADMIN_PASSWORD_HASH = await bcrypt.hash("correct horse battery staple", 4);
+    sanity.fetch.mockResolvedValue({ count: 0, oldest: null });
+    sanity.create.mockResolvedValue({});
   });
 
   it("rejects unauthenticated profile and admin API access", async () => {
