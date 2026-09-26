@@ -20,6 +20,21 @@ describe("admin operations summary route", () => {
         mocks.fetch.mockResolvedValue({
             kpis: { ordersToday: 0, grossOrderValue: null },
             exceptions: { failedOnlinePayments: [] },
+            quality: {
+                counts: { duplicateOrderNumbers: 1 },
+                samples: {
+                    duplicateOrderNumbers: [
+                        {
+                            _id: "internal-document-id",
+                            orderNumber: "ORD-secret-123",
+                            email: "private@example.test",
+                            phone: "9999999999",
+                            total: 120,
+                        },
+                    ],
+                },
+                populations: { historicalCodOrders: 2, onlinePaymentOrders: 3 },
+            },
         });
     });
 
@@ -46,10 +61,20 @@ describe("admin operations summary route", () => {
             success: true,
             timeZone: "Asia/Kolkata",
             exceptionLimit: 50,
+            auditSampleLimit: 25,
             kpis: { ordersToday: 0, grossOrderValue: 0 },
             exceptions: { failedOnlinePayments: [] },
         });
+        expect(body.definitions.length).toBeGreaterThan(10);
+        expect(body.quality.samples.duplicateOrderNumbers[0]).toMatchObject({
+            maskedOrderId: expect.stringMatching(/^order-[a-f0-9]{12}$/),
+            recordKey: expect.stringMatching(/^[a-f0-9]{12}$/),
+            total: 120,
+        });
+        expect(JSON.stringify(body)).not.toContain("ORD-secret-123");
+        expect(JSON.stringify(body)).not.toContain("private@example.test");
+        expect(JSON.stringify(body)).not.toContain("9999999999");
         expect(mocks.fetch).toHaveBeenCalledOnce();
-        expect(mocks.fetch.mock.calls[0][1]).toMatchObject({ limit: 50 });
+        expect(mocks.fetch.mock.calls[0][1]).toMatchObject({ limit: 50, auditLimit: 25 });
     });
 });

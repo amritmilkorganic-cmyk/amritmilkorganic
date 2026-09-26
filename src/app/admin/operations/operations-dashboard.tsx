@@ -3,24 +3,39 @@
 import { useCallback, useEffect, useState } from "react";
 
 type QueueRecord = {
-    _id: string;
+    recordKey: string;
     recordType?: string;
-    orderNumber?: string;
-    subscriptionId?: string;
-    customerName?: string;
-    name?: string;
-    phone?: string;
+    maskedOrderId?: string;
+    maskedTransactionId?: string;
+    maskedSubscriptionId?: string;
     total?: number;
     paymentStatus?: string;
     orderStatus?: string;
     nextDelivery?: string;
+    startDate?: string;
+    paymentMethod?: string;
+    status?: string;
+    subtotal?: number;
+    deliveryFee?: number;
+    discount?: number;
     _createdAt?: string;
+};
+
+type MetricDefinition = {
+    key: string;
+    label: string;
+    source: string;
+    definition: string;
+    window: string;
+    confidence: "database-derived" | "incomplete" | "external-reconciliation";
 };
 
 type Summary = {
     asOf: string;
     timeZone: string;
     exceptionLimit: number;
+    auditSampleLimit: number;
+    definitions: MetricDefinition[];
     kpis: {
         ordersToday: number;
         ordersLast7Days: number;
@@ -38,6 +53,11 @@ type Summary = {
         unownedSubscriptions: number;
     };
     exceptions: Record<string, QueueRecord[]>;
+    quality: {
+        counts: Record<string, number>;
+        samples: Record<string, QueueRecord[]>;
+        populations: { historicalCodOrders: number; onlinePaymentOrders: number };
+    };
 };
 
 const currency = new Intl.NumberFormat("en-IN", {
@@ -58,6 +78,67 @@ const queueLabels: Record<string, string> = {
     ambiguousOrUnownedCustomers: "Ambiguous or unowned customer records",
 };
 
+const qualityLabels: Record<string, { label: string; note: string }> = {
+    duplicateOrderNumbers: {
+        label: "Duplicate order IDs",
+        note: "Documents sharing the same stored orderNumber; count is affected documents, not distinct IDs.",
+    },
+    duplicateTransactionIds: {
+        label: "Duplicate payment transaction IDs",
+        note: "Online order documents sharing a non-empty trackingId.",
+    },
+    successfulOnlineMissingTransaction: {
+        label: "Successful online payments missing transaction IDs",
+        note: "CCAvenue orders marked success without a trackingId.",
+    },
+    onlinePending24Hours: {
+        label: "Online payments pending beyond 24 hours",
+        note: "CCAvenue orders still pending more than 24 elapsed hours after Sanity creation.",
+    },
+    invalidAmounts: {
+        label: "Missing or invalid amounts",
+        note: "Orders with missing/negative totals or subtotals, or negative delivery fees/discounts.",
+    },
+    invalidDates: {
+        label: "Invalid subscription dates",
+        note: "Defined business date fields that cannot be interpreted as dates. Sanity system _createdAt is authoritative for order windows.",
+    },
+    invalidPaymentStatuses: {
+        label: "Missing or invalid payment statuses",
+        note: "Order paymentStatus outside pending, success, or failed.",
+    },
+    invalidFulfillmentStatuses: {
+        label: "Missing or invalid fulfillment statuses",
+        note: "Order orderStatus outside the five supported fulfillment states.",
+    },
+    orderTotalDiscrepancies: {
+        label: "Order-total discrepancies",
+        note: "Stored total differs by more than ₹0.01 from subtotal + deliveryFee − discount.",
+    },
+    unownedOrders: {
+        label: "Orders missing canonical ownership",
+        note: "No customerAccount reference; may include intentional guests and historical records.",
+    },
+    unownedSubscriptions: {
+        label: "Subscriptions missing canonical ownership",
+        note: "No customerAccount reference.",
+    },
+    subscriptionsMissingSchedule: {
+        label: "Active subscriptions missing delivery schedules",
+        note: "Active subscription lacks frequency, startDate, or nextDelivery.",
+    },
+    subscriptionsMissingRequiredFields: {
+        label: "Subscriptions missing required fields",
+        note: "Missing identity, customer, product, status, or payment-method fields needed operationally.",
+    },
+};
+
+const confidenceLabels = {
+    "database-derived": "Database-derived",
+    incomplete: "Incomplete / data-quality dependent",
+    "external-reconciliation": "Requires external reconciliation",
+};
+
 function displayDate(value: string | undefined, timeZone: string) {
     if (!value) return "—";
     return new Intl.DateTimeFormat("en-IN", {
@@ -73,6 +154,65 @@ function Metric({ label, value, note }: { label: string; value: string | number;
             <p className="text-sm text-stone-600 dark:text-stone-300">{label}</p>
             <p className="mt-2 text-2xl font-bold text-stone-900 dark:text-white">{value}</p>
             {note && <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">{note}</p>}
+        </div>
+    );
+}
+
+function AuditRows({ records, timeZone }: { records: QueueRecord[]; timeZone: string }) {
+    if (records.length === 0) {
+        return (
+            <p className="border-t px-5 py-5 text-sm text-stone-500 dark:border-white/10 dark:text-stone-400">
+                No exceptions found.
+            </p>
+        );
+    }
+    return (
+        <div className="overflow-x-auto border-t dark:border-white/10">
+            <table className="w-full min-w-[720px] text-left text-sm">
+                <thead className="bg-stone-50 dark:bg-slate-800">
+                    <tr>
+                        <th className="px-4 py-3">Masked record</th>
+                        <th className="px-4 py-3">Stored values</th>
+                        <th className="px-4 py-3">Created / relevant date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {records.map((record) => (
+                        <tr
+                            key={`${record.recordKey}-${record.maskedTransactionId || ""}`}
+                            className="border-t dark:border-white/10"
+                        >
+                            <td className="px-4 py-3 font-mono text-xs">
+                                {record.maskedOrderId ||
+                                    record.maskedSubscriptionId ||
+                                    `record-${record.recordKey}`}
+                                {record.maskedTransactionId ? (
+                                    <span className="block">{record.maskedTransactionId}</span>
+                                ) : null}
+                            </td>
+                            <td className="px-4 py-3">
+                                {[
+                                    record.paymentMethod,
+                                    record.paymentStatus,
+                                    record.orderStatus,
+                                    record.status,
+                                    typeof record.total === "number"
+                                        ? currency.format(record.total)
+                                        : undefined,
+                                ]
+                                    .filter(Boolean)
+                                    .join(" · ") || "Review missing fields"}
+                            </td>
+                            <td className="px-4 py-3">
+                                {displayDate(
+                                    record.nextDelivery || record.startDate || record._createdAt,
+                                    timeZone
+                                )}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
     );
 }
@@ -226,6 +366,104 @@ export default function OperationsDashboard() {
                             </div>
                         </section>
 
+                        <section className="mt-10" aria-labelledby="definitions-heading">
+                            <h2 id="definitions-heading" className="text-2xl font-bold">
+                                KPI definitions and confidence
+                            </h2>
+                            <p className="mb-5 mt-1 text-sm text-stone-600 dark:text-stone-300">
+                                Sources are the application&apos;s Sanity documents. Kolkata windows
+                                are half-open intervals: start inclusive, end exclusive. CCAvenue
+                                success is only an application status; settlement cannot be
+                                confirmed without separately obtained gateway settlement records.
+                            </p>
+                            <div className="overflow-x-auto rounded-xl border border-amber-900/10 bg-white dark:border-white/10 dark:bg-slate-900">
+                                <table className="w-full min-w-[900px] text-left text-sm">
+                                    <thead className="bg-stone-50 dark:bg-slate-800">
+                                        <tr>
+                                            <th className="px-4 py-3">KPI / classification</th>
+                                            <th className="px-4 py-3">Source and inclusion rule</th>
+                                            <th className="px-4 py-3">Asia/Kolkata window</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {summary.definitions.map((item) => (
+                                            <tr
+                                                key={item.key}
+                                                className="border-t dark:border-white/10"
+                                            >
+                                                <td className="px-4 py-3 align-top">
+                                                    <p className="font-semibold">{item.label}</p>
+                                                    <span className="mt-1 inline-block rounded-full bg-stone-100 px-2 py-1 text-xs dark:bg-slate-700">
+                                                        {confidenceLabels[item.confidence]}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 align-top">
+                                                    <p>{item.definition}</p>
+                                                    <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+                                                        Source: {item.source}
+                                                    </p>
+                                                </td>
+                                                <td className="px-4 py-3 align-top">
+                                                    {item.window}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <section className="mt-10" aria-labelledby="reconciliation-heading">
+                            <h2 id="reconciliation-heading" className="text-2xl font-bold">
+                                Read-only data accuracy and reconciliation audit
+                            </h2>
+                            <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">
+                                Counts cover the full Sanity dataset. Samples are capped at{" "}
+                                {summary.auditSampleLimit} rows per check and use irreversible
+                                masked identifiers. This view performs no updates, migrations,
+                                deletions, or backfills.
+                            </p>
+                            <div className="my-5 grid gap-4 sm:grid-cols-2">
+                                <Metric
+                                    label="Historical COD records"
+                                    value={summary.quality.populations.historicalCodOrders}
+                                    note="All-time records stored with paymentMethod=cod; not proof of collection."
+                                />
+                                <Metric
+                                    label="Current online-payment records"
+                                    value={summary.quality.populations.onlinePaymentOrders}
+                                    note="All-time CCAvenue application records; gateway settlement requires external reconciliation."
+                                />
+                            </div>
+                            <div className="space-y-5">
+                                {Object.entries(qualityLabels).map(([key, details]) => {
+                                    const records = summary.quality.samples[key] || [];
+                                    const count = summary.quality.counts[key] || 0;
+                                    return (
+                                        <details
+                                            key={key}
+                                            className="overflow-hidden rounded-xl border border-amber-900/10 bg-white dark:border-white/10 dark:bg-slate-900"
+                                            open={count > 0}
+                                        >
+                                            <summary className="cursor-pointer px-5 py-4 font-semibold">
+                                                {details.label}{" "}
+                                                <span className="ml-2 rounded-full bg-stone-100 px-2 py-1 text-xs dark:bg-slate-700">
+                                                    {count}
+                                                </span>
+                                                <span className="mt-1 block text-xs font-normal text-stone-500 dark:text-stone-400">
+                                                    {details.note}
+                                                </span>
+                                            </summary>
+                                            <AuditRows
+                                                records={records}
+                                                timeZone={summary.timeZone}
+                                            />
+                                        </details>
+                                    );
+                                })}
+                            </div>
+                        </section>
+
                         <section className="mt-10" aria-labelledby="exceptions-heading">
                             <h2 id="exceptions-heading" className="text-2xl font-bold">
                                 Exception queues
@@ -265,9 +503,6 @@ export default function OperationsDashboard() {
                                                                     Record
                                                                 </th>
                                                                 <th className="px-4 py-3">
-                                                                    Customer
-                                                                </th>
-                                                                <th className="px-4 py-3">
                                                                     Value / status
                                                                 </th>
                                                                 <th className="px-4 py-3">
@@ -278,19 +513,13 @@ export default function OperationsDashboard() {
                                                         <tbody>
                                                             {records.map((record) => (
                                                                 <tr
-                                                                    key={record._id}
+                                                                    key={record.recordKey}
                                                                     className="border-t dark:border-white/10"
                                                                 >
                                                                     <td className="px-4 py-3 font-medium">
-                                                                        {record.orderNumber ||
-                                                                            record.subscriptionId ||
-                                                                            `${record.recordType || "record"} · ${record._id.slice(0, 10)}`}
-                                                                    </td>
-                                                                    <td className="px-4 py-3">
-                                                                        {record.customerName ||
-                                                                            record.name ||
-                                                                            record.phone ||
-                                                                            "—"}
+                                                                        {record.maskedOrderId ||
+                                                                            record.maskedSubscriptionId ||
+                                                                            `${record.recordType || "record"}-${record.recordKey}`}
                                                                     </td>
                                                                     <td className="px-4 py-3">
                                                                         {typeof record.total ===

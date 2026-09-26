@@ -9,8 +9,10 @@ import order from "./order";
 import product from "./product";
 import siteSettings from "./siteSettings";
 import subscription from "./subscription";
+import adminLoginAudit from "./adminLoginAudit";
 
 export const schemaTypes = [
+    adminLoginAudit,
     product,
     blog,
     order,

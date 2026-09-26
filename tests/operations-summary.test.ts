@@ -3,6 +3,8 @@ import {
     getOperationsBoundaries,
     normalizeOperationsSummary,
     OPERATIONS_TIME_ZONE,
+    KPI_DEFINITIONS,
+    operationsSummaryQuery,
 } from "@/lib/operations-summary";
 
 describe("operations summary calculations", () => {
@@ -34,5 +36,51 @@ describe("operations summary calculations", () => {
             kpis: { ordersToday: 0, grossOrderValue: 0, onlinePaidValue: 0 },
             exceptions: { failedOnlinePayments: [] },
         });
+    });
+
+    it("documents every dashboard KPI and its confidence", () => {
+        expect(KPI_DEFINITIONS.map((definition) => definition.key)).toEqual([
+            "ordersToday",
+            "ordersLast7Days",
+            "grossOrderValue",
+            "onlinePaidValue",
+            "codPendingValue",
+            "pendingPaymentCount",
+            "failedPaymentCount",
+            "fulfillment",
+            "activeSubscriptions",
+            "pausedSubscriptions",
+            "deliveriesDueToday",
+            "deliveriesDueTomorrow",
+            "unownedOrders",
+            "unownedSubscriptions",
+        ]);
+        expect(KPI_DEFINITIONS.every((item) => item.source && item.definition && item.window)).toBe(
+            true
+        );
+        expect(KPI_DEFINITIONS.find((item) => item.key === "onlinePaidValue")?.confidence).toBe(
+            "external-reconciliation"
+        );
+    });
+
+    it("contains all required reconciliation checks and caps samples", () => {
+        for (const key of [
+            "duplicateOrderNumbers",
+            "duplicateTransactionIds",
+            "successfulOnlineMissingTransaction",
+            "onlinePending24Hours",
+            "invalidAmounts",
+            "invalidDates",
+            "invalidPaymentStatuses",
+            "invalidFulfillmentStatuses",
+            "orderTotalDiscrepancies",
+            "unownedOrders",
+            "unownedSubscriptions",
+            "subscriptionsMissingSchedule",
+            "subscriptionsMissingRequiredFields",
+        ]) {
+            expect(operationsSummaryQuery).toContain(`\"${key}\"`);
+        }
+        expect(operationsSummaryQuery).toContain("[0...$auditLimit]");
     });
 });
